@@ -1,0 +1,11 @@
+structure main
+(
+    ; should fail: forgot the '=' before 'λ'. The parser expects
+    ; PUNCT '=' right after the subroutine name and gets the LAMBDA
+    ; token instead.
+    run λ
+    (
+        i₃₂ cons_1 → a
+        bool assert a
+    )
+)

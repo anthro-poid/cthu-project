@@ -1,0 +1,24 @@
+structure ops
+(
+    ; should fail: forgot the 'λ' keyword before the subroutine body.
+    ; without it the parser treats this as a builtin alias
+    ; ('name = builtin_name') and reads the next identifier ('a') as
+    ; if it named a builtin -- it isn't one, so this crashes with a
+    ; raw, uncaught KeyError rather than a clean parser error.
+    double = a → out
+    (
+        w₃₂ dup a → a1 a2
+        i₃₂ add a1 a2 → out
+    )
+)
+
+structure main
+(
+    run = λ
+    (
+        ops double         → f
+        i₃₂ cons_5 → a
+        fᵢⁱ call f a → out
+        bool assert out
+    )
+)

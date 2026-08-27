@@ -1,0 +1,15 @@
+structure main
+(
+    run = λ
+    (
+        i₃₂ cons_1 → a
+        i₃₂ cons_1 → b
+        i₃₂ eq? a b → ok
+        bool assert ok
+    )
+)
+
+; should fail: one closing paren too many. Once 'main' is fully
+; parsed, the top-level loop expects 'type'/'signature'/'structure'
+; next and rejects this stray ')' as an invalid symbol.
+)

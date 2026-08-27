@@ -1,0 +1,90 @@
+structure ops
+(
+    double = λ a → out
+    (
+        w₃₂ dup a → a1 a2
+        i₃₂ add a1 a2 → out
+    )
+
+    square = λ a → out
+    (
+        w₃₂ dup a → a1 a2
+        i₃₂ mul a1 a2 → out
+    )
+
+    increment = λ a → out
+    (
+        i₃₂ cons_1 → one
+        i₃₂ add a one → out
+    )
+
+    ; max via opt/join: exactly one branch survives, the other collapses to bottom
+    max2 = λ a b → out
+    (
+        w₃₂  dup a → a1 a2
+        w₃₂  dup b → b1 b2
+        i₃₂  lt? a1 b1 → cond
+        bool dup cond → cond1 cond2
+        bool not cond2 → ncond
+
+        w₃₂ opt cond1 b2 → alt1
+        w₃₂ opt ncond a2 → alt2
+
+        w₃₂ join alt1 alt2 → out
+    )
+)
+
+structure main
+(
+    run = λ
+    (
+        ; call a subroutine of one argument, pushed as a value first
+        ops double         → f
+        i₃₂ cons_5 → a
+        fᵢⁱ call f a → out
+        i₃₂ cons_10 → expect
+        i₃₂ eq? out expect → ok1
+        bool assert ok1
+
+        ops square         → f
+        i₃₂ cons_3 → a
+        fᵢⁱ call f a → out
+        i₃₂ cons_9 → expect
+        i₃₂ eq? out expect → ok2
+        bool assert ok2
+
+        ops increment       → f
+        i₃₂ cons_6 → a
+        fᵢⁱ call f a → out
+        i₃₂ cons_7 → expect
+        i₃₂ eq? out expect → ok3
+        bool assert ok3
+
+        ; call a subroutine of two arguments
+        ops max2 → f
+        i₃₂ cons_3 → a
+        i₃₂ cons_7 → b
+        fᵢᵢⁱ call f a b → out
+        i₃₂ cons_7 → expect
+        i₃₂ eq? out expect → ok4
+        bool assert ok4
+
+        ; argument order doesn't matter
+        ops max2 → f
+        i₃₂ cons_7 → a
+        i₃₂ cons_3 → b
+        fᵢᵢⁱ call f a b → out
+        i₃₂ cons_7 → expect
+        i₃₂ eq? out expect → ok5
+        bool assert ok5
+
+        ; equal arguments: neither branch is strictly less, so the second wins
+        ops max2 → f
+        i₃₂ cons_5 → a
+        i₃₂ cons_5 → b
+        fᵢᵢⁱ call f a b → out
+        i₃₂ cons_5 → expect
+        i₃₂ eq? out expect → ok6
+        bool assert ok6
+    )
+)

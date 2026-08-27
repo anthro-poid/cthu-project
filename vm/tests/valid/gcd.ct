@@ -1,0 +1,108 @@
+structure gcd
+(
+    rec = λ a b → out
+    (
+        w₃₂  dup  b        → b1 b2
+        i₃₂  rem  a  b1     → r
+
+        gcd  loop               → cont
+        fᵢᵢⁱ call cont b2 r → out
+    )
+
+    base = λ a b → out
+    (
+        w₃₂ drop b
+        w₃₂ move a → out
+    )
+
+    frame = λ A B a b → out
+    (
+        w₃₂ dup a → a1 a2
+        w₃₂ dup b → b1 b2
+
+        fᵢᵢⁱ call A a1 b1 → out1
+        fᵢᵢⁱ call B a2 b2 → out2
+
+        w₃₂ join out1 out2 → out
+    )
+
+    loop = λ a b → out
+    (
+        i₃₂ cons_0      → zero
+        w₃₂ dup b       → b1 b2
+        i₃₂ eq? b1 zero → cmp
+
+        bool dup cmp   → cmp1 cmp2
+        bool not cmp2  → cmp3
+
+        gcd base  → base
+        gcd rec   → rec
+        gcd frame → frame
+
+        fᵢᵢⁱ opt cmp1 base → alt1
+        fᵢᵢⁱ opt cmp3 rec  → alt2
+
+        fᵢᵢⁱ join alt1 alt2 frame → cont
+        fᵢᵢⁱ call cont a b2       → out
+    )
+
+    compute = λ a b → out
+    (
+        gcd   loop        → cont
+        fᵢᵢⁱ call cont a b → out
+    )
+)
+
+structure main
+(
+    run = λ
+    (
+        i₃₂ cons_12 → a
+        i₃₂ cons_8  → b
+        gcd compute        → program
+        fᵢᵢⁱ call program a b → out
+        i₃₂ cons_4   → expect
+        i₃₂ eq?  out expect → c
+        bool assert c
+
+        i₃₂ cons_9 → a
+        i₃₂ cons_6 → b
+        gcd compute        → program
+        fᵢᵢⁱ call program a b → out
+        i₃₂ cons_3   → expect
+        i₃₂ eq?  out expect → c
+        bool assert c
+
+        i₃₂ cons_7 → a
+        i₃₂ cons_7 → b
+        gcd compute        → program
+        fᵢᵢⁱ call program a b → out
+        i₃₂ cons_7   → expect
+        i₃₂ eq?  out expect → c
+        bool assert c
+
+        i₃₂ cons_0 → a
+        i₃₂ cons_5 → b
+        gcd compute        → program
+        fᵢᵢⁱ call program a b → out
+        i₃₂ cons_5   → expect
+        i₃₂ eq?  out expect → c
+        bool assert c
+
+        i₃₂ cons_15 → a
+        i₃₂ cons_10 → b
+        gcd compute        → program
+        fᵢᵢⁱ call program a b → out
+        i₃₂ cons_5   → expect
+        i₃₂ eq?  out expect → c
+        bool assert c
+
+        i₃₂ cons_1 → a
+        i₃₂ cons_1 → b
+        gcd compute        → program
+        fᵢᵢⁱ call program a b → out
+        i₃₂ cons_1   → expect
+        i₃₂ eq?  out expect → c
+        bool assert c
+    )
+)

@@ -1,0 +1,61 @@
+structure main
+(
+    run = λ
+    (
+        ; bitwise and: 1100 & 1010 = 1000 (12 & 10 = 8)
+        i₃₂ cons_12 → a
+        i₃₂ cons_10 → b
+        i₃₂ and a b → c
+        i₃₂ cons_8 → e
+        i₃₂ eq? c e → ok1
+        bool assert ok1
+
+        ; bitwise or: 1100 | 0011 = 1111 (12 | 3 = 15)
+        i₃₂ cons_12 → a
+        i₃₂ cons_3 → b
+        i₃₂ or a b → c
+        i₃₂ cons_15 → e
+        i₃₂ eq? c e → ok2
+        bool assert ok2
+
+        ; bitwise xor: 1111 ^ 1001 = 0110 (15 ^ 9 = 6)
+        i₃₂ cons_15 → a
+        i₃₂ cons_9 → b
+        i₃₂ xor a b → c
+        i₃₂ cons_6 → e
+        i₃₂ eq? c e → ok3
+        bool assert ok3
+
+        ; shift left: 1 << 3 = 8
+        i₃₂ cons_1 → a
+        i₃₂ cons_3 → b
+        i₃₂ shl a b → c
+        i₃₂ cons_8 → e
+        i₃₂ eq? c e → ok4
+        bool assert ok4
+
+        ; unsigned shift right: 8 >> 2 = 2
+        u₃₂ cons_8 → a
+        u₃₂ cons_2 → b
+        u₃₂ shr a b → c
+        u₃₂ cons_2 → e
+        u₃₂ eq? c e → ok5
+        bool assert ok5
+
+        ; signed shift right: 8 >> 2 = 2
+        i₃₂ cons_8 → a
+        i₃₂ cons_2 → b
+        i₃₂ shr a b → c
+        i₃₂ cons_2 → e
+        i₃₂ eq? c e → ok6
+        bool assert ok6
+
+        ; bitwise negation is involutive: ~~5 = 5
+        i₃₂ cons_5 → a
+        w₃₂ dup a → a1 a2
+        i₃₂ neg a1 → b
+        i₃₂ neg b → c
+        i₃₂ eq? a2 c → ok7
+        bool assert ok7
+    )
+)

@@ -1,0 +1,97 @@
+structure main
+(
+    run = λ
+    (
+        ; bool has no constant literal, so true/false are derived fresh
+        ; from i32 equality comparisons wherever they're needed
+
+        ; and(t,t) = t
+        i₃₂ cons_1 → x1a
+        i₃₂ cons_1 → x1b
+        i₃₂ eq? x1a x1b → t1a
+        i₃₂ cons_1 → x1c
+        i₃₂ cons_1 → x1d
+        i₃₂ eq? x1c x1d → t1b
+        bool and t1a t1b → r1
+        bool assert r1
+
+        ; and(t,f) = f
+        i₃₂ cons_1 → x2a
+        i₃₂ cons_1 → x2b
+        i₃₂ eq? x2a x2b → t2
+        i₃₂ cons_1 → x2c
+        i₃₂ cons_0 → x2d
+        i₃₂ eq? x2c x2d → f2
+        bool and t2 f2 → r2
+        bool not r2 → r2n
+        bool assert r2n
+
+        ; and(f,f) = f
+        i₃₂ cons_1 → x3a
+        i₃₂ cons_0 → x3b
+        i₃₂ eq? x3a x3b → f3a
+        i₃₂ cons_1 → x3c
+        i₃₂ cons_0 → x3d
+        i₃₂ eq? x3c x3d → f3b
+        bool and f3a f3b → r3
+        bool not r3 → r3n
+        bool assert r3n
+
+        ; or(f,t) = t
+        i₃₂ cons_1 → x4a
+        i₃₂ cons_0 → x4b
+        i₃₂ eq? x4a x4b → f4
+        i₃₂ cons_1 → x4c
+        i₃₂ cons_1 → x4d
+        i₃₂ eq? x4c x4d → t4
+        bool or f4 t4 → r4
+        bool assert r4
+
+        ; or(f,f) = f
+        i₃₂ cons_1 → x5a
+        i₃₂ cons_0 → x5b
+        i₃₂ eq? x5a x5b → f5a
+        i₃₂ cons_1 → x5c
+        i₃₂ cons_0 → x5d
+        i₃₂ eq? x5c x5d → f5b
+        bool or f5a f5b → r5
+        bool not r5 → r5n
+        bool assert r5n
+
+        ; xor(t,f) = t
+        i₃₂ cons_1 → x6a
+        i₃₂ cons_1 → x6b
+        i₃₂ eq? x6a x6b → t6
+        i₃₂ cons_1 → x6c
+        i₃₂ cons_0 → x6d
+        i₃₂ eq? x6c x6d → f6
+        bool xor t6 f6 → r6
+        bool assert r6
+
+        ; xor(t,t) = f
+        i₃₂ cons_1 → x7a
+        i₃₂ cons_1 → x7b
+        i₃₂ eq? x7a x7b → t7a
+        i₃₂ cons_1 → x7c
+        i₃₂ cons_1 → x7d
+        i₃₂ eq? x7c x7d → t7b
+        bool xor t7a t7b → r7
+        bool not r7 → r7n
+        bool assert r7n
+
+        ; not(f) = t
+        i₃₂ cons_1 → x8a
+        i₃₂ cons_0 → x8b
+        i₃₂ eq? x8a x8b → f8
+        bool not f8 → r8
+        bool assert r8
+
+        ; not(t) = f
+        i₃₂ cons_1 → x9a
+        i₃₂ cons_1 → x9b
+        i₃₂ eq? x9a x9b → t9
+        bool not t9 → r9
+        bool not r9 → r9n
+        bool assert r9n
+    )
+)

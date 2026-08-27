@@ -1,0 +1,54 @@
+structure main
+(
+    run = λ
+    (
+        ; dup: duplicating a value gives two equal copies
+        i₃₂ cons_7 → a
+        w₃₂ dup a → a1 a2
+        i₃₂ eq? a1 a2 → ok1
+        bool assert ok1
+
+        ; fork: forking a value also gives two equal copies
+        i₃₂ cons_9 → b
+        w₃₂ fork b → b1 b2
+        i₃₂ eq? b1 b2 → ok2
+        bool assert ok2
+
+        ; move: passes the value through unchanged
+        i₃₂ cons_4 → c
+        w₃₂ move c → c1
+        i₃₂ cons_4 → expect1
+        i₃₂ eq? c1 expect1 → ok3
+        bool assert ok3
+
+        ; join of bottom with a concrete value returns that concrete value
+        w₃₂ bot → dbot
+        i₃₂ cons_6 → d1
+        w₃₂ join dbot d1 → d
+        i₃₂ cons_6 → expect2
+        i₃₂ eq? d expect2 → ok4
+        bool assert ok4
+
+        ; opt: a true condition keeps the value unchanged
+        i₃₂ cons_1 → t1
+        i₃₂ cons_1 → t2
+        i₃₂ eq? t1 t2 → cond
+        i₃₂ cons_11 → e
+        w₃₂ opt cond e → e1
+        i₃₂ cons_11 → expect3
+        i₃₂ eq? e1 expect3 → ok5
+        bool assert ok5
+
+        ; drop: consumes a value without producing anything
+        i₃₂ cons_2 → f
+        w₃₂ drop f
+
+        ; the same set of ops works over bool, not just w32
+        i₃₂ cons_1 → u1
+        i₃₂ cons_1 → u2
+        i₃₂ eq? u1 u2 → g
+        bool dup g → g1 g2
+        bool assert g1
+        bool assert g2
+    )
+)

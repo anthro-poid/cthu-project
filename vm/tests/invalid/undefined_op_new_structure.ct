@@ -1,0 +1,26 @@
+structure widget
+(
+    ; should fail: 'helper' is referenced here but never given its
+    ; own '= λ' body anywhere. Unlike typo_op_name.ct, 'widget' isn't
+    ; one of builtins.ct's structures at all -- it's a brand new,
+    ; entirely user-defined one, so there's no builtin fallback to
+    ; even consider. Caught by check_undefined_ops() after parsing.
+    make = λ a → out
+    (
+        widget helper a → mid
+        w₃₂ move mid → out
+    )
+)
+
+structure main
+(
+    run = λ
+    (
+        i₃₂ cons_5 → a
+        widget make      → f
+        fᵢⁱ call f a → out
+        i₃₂ cons_5 → expect
+        i₃₂ eq?  out expect → ok
+        bool assert ok
+    )
+)

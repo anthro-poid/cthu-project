@@ -1,0 +1,24 @@
+structure ops
+(
+    ; should fail: 'ad' is a typo for 'add'. w₃₂/i₃₂ have no
+    ; operation named 'ad' -- caught by check_undefined_ops() right
+    ; after parsing, before this program ever runs.
+    double = λ a → out
+    (
+        w₃₂ dup a → a1 a2
+        i₃₂ ad  a1 a2 → out
+    )
+)
+
+structure main
+(
+    run = λ
+    (
+        ops double         → f
+        i₃₂ cons_5 → a
+        fᵢⁱ call f a → out
+        i₃₂ cons_10 → expect
+        i₃₂ eq?  out expect → ok
+        bool assert ok
+    )
+)

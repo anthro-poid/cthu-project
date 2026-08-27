@@ -1,0 +1,23 @@
+structure ops
+(
+    double = λ a → out
+    (
+        w₃₂ dup a → a1 a2
+        i₃₂ add a1 a2 → out
+    )
+)
+
+structure main
+(
+    ; should fail: the closing paren for 'run's body (and for 'main'
+    ; itself) is missing. The parser's block-end check
+    ; (match(PAREN, ')')) peeks at the next token without first
+    ; checking for end-of-file, so running off the end of the token
+    ; stream crashes with a raw IndexError instead of a clean
+    ; "unexpected end-of-file" error.
+    run = λ
+    (
+        ops double         → f
+        i₃₂ cons_5 → a
+        fᵢⁱ call f a → out
+        bool assert out

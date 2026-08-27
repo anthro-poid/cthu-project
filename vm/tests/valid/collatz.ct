@@ -1,0 +1,148 @@
+structure collatz
+(
+    ; --- inner level: n is not 1, decide even vs odd step ---
+
+    even_step = λ n → out
+    (
+        i₃₂ cons_2    → two
+        i₃₂ div n two → n2
+
+        collatz loop     → cont
+        fᵢⁱ call cont n2 → steps
+
+        i₃₂ cons_1 → one
+        i₃₂ add steps one → out
+    )
+
+    odd_step = λ n → out
+    (
+        i₃₂ cons_3      → three
+        i₃₂ mul n three → n3
+        i₃₂ cons_1      → one
+        i₃₂ add n3 one  → n2
+
+        collatz loop     → cont
+        fᵢⁱ call cont n2 → steps
+
+        i₃₂ cons_1 → one2
+        i₃₂ add steps one2 → out
+    )
+
+    parity_frame = λ A B n → out
+    (
+        w₃₂ dup n → n1 n2
+
+        fᵢⁱ call A n1 → out1
+        fᵢⁱ call B n2 → out2
+
+        w₃₂ join out1 out2 → out
+    )
+
+    recurse = λ n → out
+    (
+        i₃₂  cons_2     → two
+        w₃₂  dup  n     → n1 n2
+        i₃₂  rem  n1 two → r
+        i₃₂  cons_0     → zero
+        i₃₂  eq?  r zero → is_even
+
+        bool dup is_even → e1 e2
+        bool not e2      → is_odd
+
+        collatz even_step → ev
+        collatz odd_step  → od
+
+        fᵢⁱ opt e1     ev → alt1
+        fᵢⁱ opt is_odd od → alt2
+
+        collatz parity_frame        → pframe
+        fᵢⁱ join alt1 alt2 pframe → cont2
+        fᵢⁱ call cont2 n2         → out
+    )
+
+    ; --- outer level: n == 1 vs n != 1 ---
+
+    base = λ n → out
+    (
+        w₃₂ drop n
+        i₃₂ cons_0 → out
+    )
+
+    frame = λ A B n → out
+    (
+        w₃₂ dup n → n1 n2
+
+        fᵢⁱ call A n1 → out1
+        fᵢⁱ call B n2 → out2
+
+        w₃₂ join out1 out2 → out
+    )
+
+    loop = λ n → out
+    (
+        i₃₂ cons_1     → one
+        w₃₂ dup n      → n1 n2
+        i₃₂ eq? n1 one → is_base
+
+        bool dup is_base → b1 b2
+        bool not b2      → not_base
+
+        collatz base    → base_f
+        collatz recurse → rec_f
+
+        fᵢⁱ opt b1       base_f → alt1
+        fᵢⁱ opt not_base rec_f  → alt2
+
+        collatz frame              → outer_frame
+        fᵢⁱ join alt1 alt2 outer_frame → cont
+        fᵢⁱ call cont n2               → out
+    )
+)
+
+structure main
+(
+    run = λ
+    (
+        i₃₂ cons_1 → n
+        collatz loop        → program
+        fᵢⁱ call program n → out
+        i₃₂ cons_0   → expect
+        i₃₂ eq?  out expect → c
+        bool assert c
+
+        i₃₂ cons_2 → n
+        collatz loop        → program
+        fᵢⁱ call program n → out
+        i₃₂ cons_1   → expect
+        i₃₂ eq?  out expect → c
+        bool assert c
+
+        i₃₂ cons_3 → n
+        collatz loop        → program
+        fᵢⁱ call program n → out
+        i₃₂ cons_7   → expect
+        i₃₂ eq?  out expect → c
+        bool assert c
+
+        i₃₂ cons_4 → n
+        collatz loop        → program
+        fᵢⁱ call program n → out
+        i₃₂ cons_2   → expect
+        i₃₂ eq?  out expect → c
+        bool assert c
+
+        i₃₂ cons_5 → n
+        collatz loop        → program
+        fᵢⁱ call program n → out
+        i₃₂ cons_5   → expect
+        i₃₂ eq?  out expect → c
+        bool assert c
+
+        i₃₂ cons_6 → n
+        collatz loop        → program
+        fᵢⁱ call program n → out
+        i₃₂ cons_8   → expect
+        i₃₂ eq?  out expect → c
+        bool assert c
+    )
+)

@@ -1,0 +1,92 @@
+structure fact
+(
+    rec = λ a i → out
+    (
+        w₃₂   dup  i     → i1 i2
+        i₃₂   mul  a  i1 →  a'
+
+        i₃₂   cons_1     → one
+        i₃₂   sub  i2 one → i'
+
+        fact loop            → cont
+        fᵢᵢⁱ call cont a' i' → out
+    )
+
+    base = λ a i → out
+    (
+        w₃₂ drop i
+        w₃₂ move a → out
+    )
+
+    frame = λ A B a i → out
+    (
+        w₃₂ fork a → a₁ a₂
+        w₃₂ fork i → i₁ i₂
+
+        fᵢᵢⁱ call A a₁ i₁ → out₁
+        fᵢᵢⁱ call B a₂ i₂ → out₂
+
+        w₃₂ join out₁ out₂ → out
+    )
+
+    loop = λ a i → out
+    (
+        i₃₂ cons_0      → zero
+        w₃₂ dup i       → i₁ i₂
+        i₃₂ le? i₁ zero → cmp
+
+        bool dup cmp   → cmp₁ cmp₂
+        bool not cmp₂  → cmp₃
+
+        fact base  → base
+        fact rec   → rec
+        fact frame → frame
+
+        fᵢᵢⁱ opt cmp₁ base → alt₁
+        fᵢᵢⁱ opt cmp₃ rec  → alt₂
+
+        fᵢᵢⁱ join alt₁ alt₂ frame → cont
+        fᵢᵢⁱ call cont a i₂     → out
+    )
+
+    compute = λ in → out
+    (
+        i₃₂ cons_1 → a
+        fact loop → cont
+        fᵢᵢⁱ call cont a in → out
+    )
+)
+
+structure main
+(
+    run = λ
+    (
+        i₃₂ cons_0 → a
+        fact compute        → program
+        fᵢⁱ call program a → out
+        i₃₂ cons_1   → b
+        i₃₂ eq?  out b → c
+        bool assert c
+
+        i₃₂ cons_1 → a
+        fact compute        → program
+        fᵢⁱ call program a → out
+        i₃₂ cons_1   → b
+        i₃₂ eq?  out b → c
+        bool assert c
+
+        i₃₂ cons_2 → a
+        fact compute        → program
+        fᵢⁱ call program a → out
+        i₃₂ cons_2   → b
+        i₃₂ eq?  out b → c
+        bool assert c
+
+        i₃₂ cons_3 → a
+        fact compute        → program
+        fᵢⁱ call program a → out
+        i₃₂ cons_6   → b
+        i₃₂ eq?  out b → c
+        bool assert c
+    )
+)

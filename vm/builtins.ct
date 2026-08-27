@@ -1,0 +1,293 @@
+structure fᵢⁱ : f₁¹[ func, stck, bool, w₃₂, w₃₂ ]
+(
+    join = builtin_func_join ; lattice
+    bot  = builtin_func_bot  ; lattice
+    top  = builtin_func_top  ; lattice
+    opt  = builtin_func_opt  ; lattice
+
+    fork = builtin_func_fork ; linear
+    move = builtin_func_move ; linear
+    push = builtin_func_push ; linear
+    pop  = builtin_func_pop  ; linear
+
+    drop = builtin_func_drop ; affine
+
+    dup  = builtin_func_dup  ; simple
+
+    call = builtin_func_call ; f₁¹
+)
+
+structure fᵢᵢⁱ : f₂¹[ func, stck, bool, w₃₂, w₃₂ ]
+(
+    join = builtin_func_join ; lattice
+    bot  = builtin_func_bot  ; lattice
+    top  = builtin_func_top  ; lattice
+    opt  = builtin_func_opt  ; lattice
+
+    fork = builtin_func_fork ; linear
+    move = builtin_func_move ; linear
+    push = builtin_func_push ; linear
+    pop  = builtin_func_pop  ; linear
+
+    drop = builtin_func_drop ; affine
+
+    dup  = builtin_func_dup  ; simple
+
+    call = builtin_func_call ; f₂¹
+)
+
+structure fᵢᵢᵢⁱ : f₃¹[ func, stck, bool, w₃₂, w₃₂ ]
+(
+    join = builtin_func_join ; lattice
+    bot  = builtin_func_bot  ; lattice
+    top  = builtin_func_top  ; lattice
+    opt  = builtin_func_opt  ; lattice
+
+    fork = builtin_func_fork ; linear
+    move = builtin_func_move ; linear
+    push = builtin_func_push ; linear
+    pop  = builtin_func_pop  ; linear
+
+    drop = builtin_func_drop ; affine
+
+    dup  = builtin_func_dup  ; simple
+
+    call = builtin_func_call ; f₃¹
+)
+
+structure w₈ : simple[ w₈, stck, bool ]
+(
+    join = builtin_bv8join ; lattice
+    bot  = builtin_bv8bot  ; lattice
+    top  = builtin_bv8top  ; lattice
+    opt  = builtin_bv8opt  ; lattice
+
+    fork = builtin_bv8fork ; linear
+    move = builtin_bv8move ; linear
+    push = builtin_bv8push ; linear
+    pop  = builtin_bv8pop  ; linear
+
+    drop = builtin_bv8drop ; affine
+
+    dup  = builtin_bv8dup  ; simple
+)
+
+structure w₃₂ : simple[ w₃₂, stck, bool ]
+(
+    join = builtin_bv32join ; lattice
+    bot  = builtin_bv32bot  ; lattice
+    top  = builtin_bv32top  ; lattice
+    opt  = builtin_bv32opt  ; lattice
+
+    fork = builtin_bv32fork ; linear
+    move = builtin_bv32move ; linear
+    push = builtin_bv32push ; linear
+    pop  = builtin_bv32pop  ; linear
+
+    drop = builtin_bv32drop ; affine
+
+    dup  = builtin_bv32dup  ; simple
+)
+
+structure bool : logical[ bool, stck ]
+(
+    join   = builtin_bool_join   ; lattice
+    bot    = builtin_bool_bot    ; lattice
+    top    = builtin_bool_top    ; lattice
+    opt    = builtin_bool_opt    ; lattice
+
+    fork   = builtin_bool_fork   ; linear
+    move   = builtin_bool_move   ; linear
+    push   = builtin_bool_push   ; linear
+    pop    = builtin_bool_pop    ; linear
+
+    drop   = builtin_bool_drop   ; affine
+
+    dup    = builtin_bool_dup    ; simple
+
+    not    = builtin_bool_not    ; logical
+    and    = builtin_bool_and    ; logical
+    or     = builtin_bool_or     ; logical
+    xor    = builtin_bool_xor    ; logical
+    assert = builtin_bool_assert ; logical
+)
+
+structure i₃₂ : arithmetic[ w₃₂, bool ], bitwise[ w₃₂ ]
+(
+    add = builtin_bv32add
+    sub = builtin_bv32sub
+    mul = builtin_bv32mul
+    div = builtin_bv32sdiv
+    rem = builtin_bv32srem
+
+    eq? = builtin_bv32eq
+    ne? = builtin_bv32ne
+    lt? = builtin_bv32slt
+    le? = builtin_bv32sle
+    ge? = builtin_bv32sge
+    gt? = builtin_bv32sgt
+
+    shl = builtin_bv32shl
+    shr = builtin_bv32ashr
+
+    cons_0  = builtin_bv32cons_0
+    cons_1  = builtin_bv32cons_1
+    cons_2  = builtin_bv32cons_2
+    cons_3  = builtin_bv32cons_3
+    cons_4  = builtin_bv32cons_4
+    cons_5  = builtin_bv32cons_5
+    cons_6  = builtin_bv32cons_6
+    cons_7  = builtin_bv32cons_7
+    cons_8  = builtin_bv32cons_8
+    cons_9  = builtin_bv32cons_9
+    cons_10 = builtin_bv32cons_10
+    cons_11 = builtin_bv32cons_11
+    cons_12 = builtin_bv32cons_12
+    cons_13 = builtin_bv32cons_13
+    cons_14 = builtin_bv32cons_14
+    cons_15 = builtin_bv32cons_15
+
+; bitwise
+    and = builtin_bv32and
+    or  = builtin_bv32or
+    xor = builtin_bv32xor
+    neg = builtin_bv32neg
+)
+
+structure u₃₂ : arithmetic[ w₃₂, bool ], bitwise[ w₃₂ ]
+(
+    add = builtin_bv32add
+    sub = builtin_bv32sub
+    mul = builtin_bv32mul
+    div = builtin_bv32udiv
+    rem = builtin_bv32urem
+
+    eq? = builtin_bv32eq
+    ne? = builtin_bv32ne
+    lt? = builtin_bv32ult
+    le? = builtin_bv32ule
+    ge? = builtin_bv32uge
+    gt? = builtin_bv32ugt
+
+    shl = builtin_bv32shl
+    shr = builtin_bv32lshr
+
+    cons_0  = builtin_bv32cons_0
+    cons_1  = builtin_bv32cons_1
+    cons_2  = builtin_bv32cons_2
+    cons_3  = builtin_bv32cons_3
+    cons_4  = builtin_bv32cons_4
+    cons_5  = builtin_bv32cons_5
+    cons_6  = builtin_bv32cons_6
+    cons_7  = builtin_bv32cons_7
+    cons_8  = builtin_bv32cons_8
+    cons_9  = builtin_bv32cons_9
+    cons_10 = builtin_bv32cons_10
+    cons_11 = builtin_bv32cons_11
+    cons_12 = builtin_bv32cons_12
+    cons_13 = builtin_bv32cons_13
+    cons_14 = builtin_bv32cons_14
+    cons_15 = builtin_bv32cons_15
+
+; bitwise
+    and = builtin_bv32and
+    or  = builtin_bv32or
+    xor = builtin_bv32xor
+    neg = builtin_bv32neg
+)
+
+structure i₈ : arithmetic[ w₈, bool ], bitwise[ w₈ ]
+(
+    add = builtin_bv8add
+    sub = builtin_bv8sub
+    mul = builtin_bv8mul
+    div = builtin_bv8sdiv
+    rem = builtin_bv8srem
+
+    eq? = builtin_bv8eq
+    ne? = builtin_bv8ne
+    lt? = builtin_bv8slt
+    le? = builtin_bv8sle
+    ge? = builtin_bv8sge
+    gt? = builtin_bv8sgt
+
+    shl = builtin_bv8shl
+    shr = builtin_bv8ashr
+
+    cons_0  = builtin_bv8cons_0
+    cons_1  = builtin_bv8cons_1
+    cons_2  = builtin_bv8cons_2
+    cons_3  = builtin_bv8cons_3
+    cons_4  = builtin_bv8cons_4
+    cons_5  = builtin_bv8cons_5
+    cons_6  = builtin_bv8cons_6
+    cons_7  = builtin_bv8cons_7
+    cons_8  = builtin_bv8cons_8
+    cons_9  = builtin_bv8cons_9
+    cons_10 = builtin_bv8cons_10
+    cons_11 = builtin_bv8cons_11
+    cons_12 = builtin_bv8cons_12
+    cons_13 = builtin_bv8cons_13
+    cons_14 = builtin_bv8cons_14
+    cons_15 = builtin_bv8cons_15
+
+; bitwise
+    and = builtin_bv8and
+    or  = builtin_bv8or
+    xor = builtin_bv8xor
+    neg = builtin_bv8neg
+)
+
+structure u₈ : arithmetic[ w₈, bool ], bitwise[ w₈ ]
+(
+    add = builtin_bv8add
+    sub = builtin_bv8sub
+    mul = builtin_bv8mul
+    div = builtin_bv8udiv
+    rem = builtin_bv8urem
+
+    eq? = builtin_bv8eq
+    ne? = builtin_bv8ne
+    lt? = builtin_bv8ult
+    le? = builtin_bv8ule
+    ge? = builtin_bv8uge
+    gt? = builtin_bv8ugt
+
+    shl = builtin_bv8shl
+    shr = builtin_bv8lshr
+
+    cons_0  = builtin_bv8cons_0
+    cons_1  = builtin_bv8cons_1
+    cons_2  = builtin_bv8cons_2
+    cons_3  = builtin_bv8cons_3
+    cons_4  = builtin_bv8cons_4
+    cons_5  = builtin_bv8cons_5
+    cons_6  = builtin_bv8cons_6
+    cons_7  = builtin_bv8cons_7
+    cons_8  = builtin_bv8cons_8
+    cons_9  = builtin_bv8cons_9
+    cons_10 = builtin_bv8cons_10
+    cons_11 = builtin_bv8cons_11
+    cons_12 = builtin_bv8cons_12
+    cons_13 = builtin_bv8cons_13
+    cons_14 = builtin_bv8cons_14
+    cons_15 = builtin_bv8cons_15
+
+; bitwise
+    and = builtin_bv8and
+    or  = builtin_bv8or
+    xor = builtin_bv8xor
+    neg = builtin_bv8neg
+)
+
+structure i₈³² : convert[ w₈, w₃₂ ]
+(
+    cut = builtin_bv32cut8
+    ext = builtin_bv8sext32
+)
+
+structure u₈³² : convert[ w₈, w₃₂ ]
+(
+    cut = builtin_bv32cut8
+    ext = builtin_bv8zext32
+)

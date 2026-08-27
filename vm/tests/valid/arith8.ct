@@ -1,0 +1,69 @@
+structure main
+(
+    run = λ
+    (
+        ; signed 8-bit addition: 5 + 3 = 8
+        i₈ cons_5 → a
+        i₈ cons_3 → b
+        i₈ add a b → c
+        i₈ cons_8 → e
+        i₈ eq? c e → ok1
+        bool assert ok1
+
+        ; signed 8-bit subtraction: 5 - 3 = 2
+        i₈ cons_5 → a
+        i₈ cons_3 → b
+        i₈ sub a b → c
+        i₈ cons_2 → e
+        i₈ eq? c e → ok2
+        bool assert ok2
+
+        ; signed 8-bit multiplication: 4 * 3 = 12
+        i₈ cons_4 → a
+        i₈ cons_3 → b
+        i₈ mul a b → c
+        i₈ cons_12 → e
+        i₈ eq? c e → ok3
+        bool assert ok3
+
+        ; signed 8-bit division: 15 / 4 = 3
+        i₈ cons_15 → a
+        i₈ cons_4 → b
+        i₈ div a b → c
+        i₈ cons_3 → e
+        i₈ eq? c e → ok4
+        bool assert ok4
+
+        ; unsigned 8-bit division: 15 / 4 = 3
+        u₈ cons_15 → a
+        u₈ cons_4 → b
+        u₈ div a b → c
+        u₈ cons_3 → e
+        u₈ eq? c e → ok5
+        bool assert ok5
+
+        ; unsigned 8-bit remainder: 15 % 4 = 3
+        u₈ cons_15 → a
+        u₈ cons_4 → b
+        u₈ rem a b → c
+        u₈ cons_3 → e
+        u₈ eq? c e → ok6
+        bool assert ok6
+
+        ; signed comparisons
+        i₈ cons_3 → a
+        i₈ cons_5 → b
+        i₈ lt? a b → ok7
+        bool assert ok7
+
+        i₈ cons_5 → a
+        i₈ cons_3 → b
+        i₈ gt? a b → ok8
+        bool assert ok8
+
+        i₈ cons_5 → a
+        i₈ cons_5 → b
+        i₈ le? a b → ok9
+        bool assert ok9
+    )
+)

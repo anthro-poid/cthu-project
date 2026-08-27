@@ -1,0 +1,117 @@
+type w₈
+type w₃₂
+
+type bool
+type stck
+type func
+type dict
+
+signature lattice[ T, B ]
+(
+    join ∷ T × T → T
+    bot  ∷ ∅ → T
+    top  ∷ ∅ → T
+    opt  ∷ B × T → T
+)
+
+signature linear[ T, S, B ] : lattice[ T, B ]
+(
+    fork ∷ T → T × T
+    move ∷ T → T
+
+    push ∷ S × T → S
+    pop  ∷ S → T × S
+)
+
+signature affine[ T, S, B ] : linear[ T, S, B ]
+(
+    drop ∷ T → ∅
+)
+
+signature simple[ T, S, B ] : affine[ T, S, B ]
+(
+    dup ∷ T → T × T
+)
+
+signature logical[ B, S ] : simple[ B, S, B ]
+(
+    not ∷ B     → B
+    and ∷ B × B → B
+    or  ∷ B × B → B
+    xor ∷ B × B → B
+    assert ∷ B  → ∅
+)
+
+; only one prototype, rest is filled by compiler
+signature f₁¹[ F, S, B, I, O ] : simple[ F, S, B ]
+(
+    call ∷ F × I → O
+)
+
+signature f₂¹[ F, S, B, I, O ] : simple[ F, S, B ]
+(
+    call ∷ F × I × I → O
+)
+
+signature f₃¹[ F, S, B, I, O ] : simple[ F, S, B ]
+(
+    call ∷ F × I × I × I → O
+)
+
+signature arithmetic[ T, B ]
+(
+    add  ∷ T × T → T
+    sub  ∷ T × T → T
+    mul  ∷ T × T → T
+    div  ∷ T × T → T
+    rem  ∷ T × T → T
+
+    eq?  ∷ T × T → B
+    ne?  ∷ T × T → B
+    lt?  ∷ T × T → B
+    le?  ∷ T × T → B
+    gt?  ∷ T × T → B
+    ge?  ∷ T × T → B
+    nil? ∷ T     → B
+
+    shl ∷ T × T → T
+    shr ∷ T × T → T
+
+    cons_0  ∷ ∅ → T
+    cons_1  ∷ ∅ → T
+    cons_2  ∷ ∅ → T
+    cons_3  ∷ ∅ → T
+    cons_4  ∷ ∅ → T
+    cons_5  ∷ ∅ → T
+    cons_6  ∷ ∅ → T
+    cons_7  ∷ ∅ → T
+    cons_8  ∷ ∅ → T
+    cons_9  ∷ ∅ → T
+    cons_10 ∷ ∅ → T
+    cons_11 ∷ ∅ → T
+    cons_12 ∷ ∅ → T
+    cons_13 ∷ ∅ → T
+    cons_14 ∷ ∅ → T
+    cons_15 ∷ ∅ → T
+)
+
+signature bitwise[ T ]
+(
+    and ∷ T × T → T
+    or  ∷ T × T → T
+    xor ∷ T × T → T
+    neg ∷ T → T
+)
+
+signature convert[ short, long ]
+(
+    cut ∷ long  → short
+    ext ∷ short → long
+)
+
+signature map[ K, V, M ]
+(
+    make ∷ ∅ → M
+    take ∷ K × M → V × M
+    put  ∷ K × V × M → M
+)

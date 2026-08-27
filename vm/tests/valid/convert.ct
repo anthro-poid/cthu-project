@@ -1,0 +1,38 @@
+structure main
+(
+    run = λ
+    (
+        ; sign-extend w8 to w32, then truncate back: round-trips unchanged
+        i₈ cons_5 → a
+        w₈ dup a → a1 a2
+        i₈³² ext a1 → b
+        i₈³² cut b → c
+        i₈ eq? a2 c → ok1
+        bool assert ok1
+
+        ; zero-extend w8 to w32, then truncate back: round-trips unchanged
+        u₈ cons_7 → a
+        w₈ dup a → a1 a2
+        u₈³² ext a1 → b
+        u₈³² cut b → c
+        u₈ eq? a2 c → ok2
+        bool assert ok2
+
+        ; zero-extended operands can be used directly in w32 arithmetic
+        u₈ cons_3 → x
+        u₈ cons_4 → y
+        u₈³² ext x → x32
+        u₈³² ext y → y32
+        i₃₂ add x32 y32 → sum32
+        i₃₂ cons_7 → expect
+        i₃₂ eq? sum32 expect → ok3
+        bool assert ok3
+
+        ; truncating a w32 value down to w8 keeps the low bits
+        i₃₂ cons_9 → n
+        i₈³² cut n → n8
+        i₈ cons_9 → expect2
+        i₈ eq? n8 expect2 → ok4
+        bool assert ok4
+    )
+)
