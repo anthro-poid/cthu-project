@@ -513,8 +513,8 @@ name_to_code: dict[ str, int ] = {
     "builtin_func_fork":    0xeff_007c,
     "builtin_func_opt":     0xeff_007d,
     "builtin_func_top":     0xeff_007e,
-    "builtin_func_bot":     0xeff_0080,
-    "builtin_func_join":    0xeff_0081
+    "builtin_func_bot":     0xeff_007f,
+    "builtin_func_join":    0xeff_0080
 }
 
 code_to_subr: dict[ int, Any ] = {
@@ -652,6 +652,6 @@ code_to_subr: dict[ int, Any ] = {
     0xeff_007c: func_fork,
     0xeff_007d: func_opt,
     0xeff_007e: func_top,
-    0xeff_0080: func_bot,
-    0xeff_0081: func_join
+    0xeff_007f: func_bot,
+    0xeff_0080: func_join
 }
