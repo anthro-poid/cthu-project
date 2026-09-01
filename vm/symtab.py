@@ -159,26 +159,17 @@ class Subr:
                 enc = 0x3c
                 enc_param = 0
 
-    def note_types( self, struct: 'Structure', name: str,
-                     inputs: list[ str ], outputs: list[ str ] ) -> None:
+    def note_types( self, struct: 'Structure', name: str, outputs: list[ str ] ) -> None:
         resolved = struct.resolve_op_types( name )
         if resolved is None:
             return
 
-        in_types, out_types = resolved
-
-        for symbol, t in zip( inputs, in_types ):
-            self._note_type( symbol, t )
+        _, out_types = resolved
 
         for symbol, t in zip( outputs, out_types ):
-            self._note_type( symbol, t )
-
-    def _note_type( self, symbol: str, t: BuiltinType ) -> None:
-        sid  = self.stack_id( symbol )
-        seen = self.stack_types.get( sid )
-
-        assert seen is None or seen == t
-        self.stack_types[ sid ] = t
+            sid = self.stack_id( symbol )
+            if sid in self.output:
+                self.stack_types[ sid ] = t
 
     def input_types( self ) -> list[ Union[ BuiltinType, None ] ]:
         return [ self.stack_types.get( sid ) for sid in self.input ]

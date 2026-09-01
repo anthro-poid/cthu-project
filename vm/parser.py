@@ -95,7 +95,7 @@ class Parser:
             outputs = self.identifiers()
 
         par_subr.add_instr( struct.get_code(), subr, inputs + outputs )
-        par_subr.note_types( struct, name, inputs, outputs )
+        par_subr.note_types( struct, name, outputs )
 
     def parse_subr( self, struct: Structure, in_main: bool ) -> None:
         name = self.identifier()
