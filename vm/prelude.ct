@@ -42,7 +42,11 @@ signature logical[ B, S ] : simple[ B, S, B ]
     assert ∷ B  → ∅
 )
 
-; only one prototype, rest is filled by compiler
+signature f₀⁰[ F, S, B ] : simple[ F, S, B ]
+(
+    call ∷ F → ∅
+)
+
 signature f₁¹[ F, S, B, I, O ] : simple[ F, S, B ]
 (
     call ∷ F × I → O
