@@ -189,18 +189,12 @@ def cut( vm: 'Interpret', params: list[ int ], t: int ) -> None:
 
 def ext( vm: 'Interpret', params: list[ int ], f: int, t: int,
          sign: bool ) -> None:
-    num = vm.pop( params[ 0 ] )
-    new_num = 0
+    num = bv_norm( vm.pop( params[ 0 ] ), f )
 
-    is_signed = ( ( ( 2 ** f ) - 1 ) & num ) > 0
-    mask = ( 2 ** t ) - 1
+    if sign and num & ( 1 << ( f - 1 ) ):
+        num |= ( ( 1 << ( t - f ) ) - 1 ) << f
 
-    if sign:
-        new_num = ( num if is_signed else ( mask << f ) | num ) & mask
-    else:
-        new_num = num & mask
-
-    vm.push( params[ 1 ], new_num )
+    vm.push( params[ 1 ], bv_norm( num, t ) )
 
 ### Bool operations
 
