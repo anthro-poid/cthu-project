@@ -256,6 +256,60 @@ void codegen::binop_insn( llvm::Instruction &instruction,
     _current_subr->body.push_back( std::move( i ) );
 }
 
+void codegen::cast_insn( llvm::CastInst &instruction, const std::string &source_struct_name,
+                         const std::string &cast_struct_name, const std::string &op_name,
+                         cthu::builtin code )
+{
+    uint16_t in = use( instruction.getOperand( 0 ), source_struct_name );
+    uint16_t out = define( &instruction );
+
+    cthu::insn i{ cast_struct_name, op_name, code };
+    i.add_in( in );
+    i.add_out( out );
+
+    _current_subr->body.push_back( std::move( i ) );
+}
+
+void codegen::visitTruncInst( llvm::TruncInst &instruction )
+{
+    assert( width_of( instruction.getOperand( 0 ) ) == 32 );
+    assert( width_of( &instruction ) == 8 );
+
+    bool is_unsigned = struct_name_for( &instruction ) == "u₈";
+    cast_insn( instruction, struct_name( is_unsigned, 32 ),
+               is_unsigned ? "u₈³²" : "i₈³²", "cut", cthu::builtin::builtin_bv32cut8 );
+}
+
+void codegen::visitSExtInst( llvm::SExtInst &instruction )
+{
+    unsigned source_width = llvm::cast< llvm::IntegerType >(
+        instruction.getOperand( 0 )->getType() )->getBitWidth();
+
+    /* There is no Cthu boolean-to-bitvector conversion builtin yet. */
+    if ( source_width == 1 )
+        return;
+
+    assert( width_of( instruction.getOperand( 0 ) ) == 8 );
+    assert( width_of( &instruction ) == 32 );
+
+    cast_insn( instruction, "i₈", "i₈³²", "ext", cthu::builtin::builtin_bv8sext32 );
+}
+
+void codegen::visitZExtInst( llvm::ZExtInst &instruction )
+{
+    unsigned source_width = llvm::cast< llvm::IntegerType >(
+        instruction.getOperand( 0 )->getType() )->getBitWidth();
+
+    /* Clang emits this for functions that return a comparison result. */
+    if ( source_width == 1 )
+        return;
+
+    assert( width_of( instruction.getOperand( 0 ) ) == 8 );
+    assert( width_of( &instruction ) == 32 );
+
+    cast_insn( instruction, "u₈", "u₈³²", "ext", cthu::builtin::builtin_bv8zext32 );
+}
+
 void codegen::visitAdd( llvm::BinaryOperator &instruction )
 {
     unsigned width = width_of( &instruction );

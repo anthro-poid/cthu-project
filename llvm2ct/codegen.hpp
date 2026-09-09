@@ -122,6 +122,9 @@ namespace llvm2ct
          * ICmpInst (2 operands in, 1 out, same as a binary op) too. */
         void binop_insn( llvm::Instruction &instruction,
                           const std::string &struct_name, const std::string &op_name, cthu::builtin code );
+        void cast_insn( llvm::CastInst &instruction, const std::string &source_struct_name,
+                        const std::string &cast_struct_name, const std::string &op_name,
+                        cthu::builtin code );
 
         using llvm::InstVisitor< codegen >::visit;
         void visit( llvm::Instruction &instruction );
@@ -132,6 +135,9 @@ namespace llvm2ct
 
         void visitReturnInst( llvm::ReturnInst &instruction );
         void visitICmpInst( llvm::ICmpInst &instruction );
+        void visitTruncInst( llvm::TruncInst &instruction );
+        void visitSExtInst( llvm::SExtInst &instruction );
+        void visitZExtInst( llvm::ZExtInst &instruction );
 
         void visitAdd( llvm::BinaryOperator &instruction );
         void visitSub( llvm::BinaryOperator &instruction );
