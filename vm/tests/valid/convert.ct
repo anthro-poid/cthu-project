@@ -10,6 +10,19 @@ structure main
         i₈ eq? a2 c → ok1
         bool assert ok1
 
+        ; 0xf0 is -16 as i8, so sign extension followed by adding 16 is zero
+        i₈ cons_15 → high
+        i₈ cons_4 → shift
+        i₈ shl high shift → negative8
+        i₈³² ext negative8 → negative32
+        i₃₂ cons_1 → one
+        i₃₂ cons_4 → shift32
+        i₃₂ shl one shift32 → sixteen
+        i₃₂ add negative32 sixteen → zero
+        i₃₂ cons_0 → expect0
+        i₃₂ eq? zero expect0 → ok_sign
+        bool assert ok_sign
+
         ; zero-extend w8 to w32, then truncate back: round-trips unchanged
         u₈ cons_7 → a
         w₈ dup a → a1 a2
