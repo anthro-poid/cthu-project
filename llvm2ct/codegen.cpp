@@ -70,8 +70,11 @@ uint16_t codegen::use( llvm::Value *value, const std::string &struct_name )
     return stack;
 }
 
-void codegen::materialize_constant( uint16_t stack, llvm::ConstantInt &c, const std::string &struct_name )
+void codegen::emit_nibble( uint16_t stack, uint8_t value,
+                           const std::string &struct_name, unsigned width )
 {
+    assert( value < 16 );
+
     static constexpr cthu::builtin cons32[] =
     {
         cthu::builtin::builtin_bv32cons_0,  cthu::builtin::builtin_bv32cons_1,
@@ -95,14 +98,75 @@ void codegen::materialize_constant( uint16_t stack, llvm::ConstantInt &c, const 
         cthu::builtin::builtin_bv8cons_14, cthu::builtin::builtin_bv8cons_15,
     };
 
-    uint64_t v = c.getZExtValue();
-    assert( v < 16 && "constant materialization only handles cons_0..cons_15 so far" );
-
-    cthu::builtin code = width_of( &c ) == 8 ? cons8[ v ] : cons32[ v ];
-    cthu::insn i{ struct_name, "cons_" + std::to_string( v ), code };
+    const cthu::builtin *cons = width == 8 ? cons8 : cons32;
+    cthu::insn i{ struct_name, "cons_" + std::to_string( value ), cons[ value ] };
     i.add_out( stack );
-
     _current_subr->body.push_back( std::move( i ) );
+}
+
+void codegen::append_nibble( uint16_t accumulator, uint16_t out, uint8_t value,
+                             const std::string &struct_name, unsigned width )
+{
+    cthu::builtin shl = width == 8 ? cthu::builtin::builtin_bv8shl
+                                   : cthu::builtin::builtin_bv32shl;
+    cthu::builtin bit_or = width == 8 ? cthu::builtin::builtin_bv8or
+                                      : cthu::builtin::builtin_bv32or;
+
+    uint16_t shift_stack = allocate_stack();
+    emit_nibble( shift_stack, 4, struct_name, width );
+
+    uint16_t shifted = allocate_stack();
+    cthu::insn shift_insn{ struct_name, "shl", shl };
+    shift_insn.add_in( accumulator );
+    shift_insn.add_in( shift_stack );
+    shift_insn.add_out( shifted );
+    _current_subr->body.push_back( std::move( shift_insn ) );
+
+    /* These stacks are safe to reuse after the completed shl. Do not
+     * commit _pending_frees here: they may belong to operands of the
+     * LLVM instruction for which this constant is being materialized. */
+    _free_stacks.push_back( accumulator );
+    _free_stacks.push_back( shift_stack );
+
+    uint16_t digit_stack = allocate_stack();
+    emit_nibble( digit_stack, value, struct_name, width );
+
+    cthu::insn or_insn{ struct_name, "or", bit_or };
+    or_insn.add_in( shifted );
+    or_insn.add_in( digit_stack );
+    or_insn.add_out( out );
+    _current_subr->body.push_back( std::move( or_insn ) );
+
+    _free_stacks.push_back( shifted );
+    _free_stacks.push_back( digit_stack );
+}
+
+void codegen::materialize_constant( uint16_t stack, llvm::ConstantInt &c, const std::string &struct_name )
+{
+    unsigned width = width_of( &c );
+
+    uint64_t value = c.getZExtValue();
+    unsigned shift = 0;
+
+    for ( uint64_t rest = value; rest >= 16; rest >>= 4 )
+        shift += 4;
+
+    if ( shift == 0 )
+    {
+        emit_nibble( stack, value, struct_name, width );
+        return;
+    }
+
+    uint16_t accumulator = allocate_stack();
+    emit_nibble( accumulator, ( value >> shift ) & 0xf, struct_name, width );
+
+    while ( shift > 0 )
+    {
+        shift -= 4;
+        uint16_t out = shift == 0 ? stack : allocate_stack();
+        append_nibble( accumulator, out, ( value >> shift ) & 0xf, struct_name, width );
+        accumulator = out;
+    }
 }
 
 unsigned codegen::width_of( llvm::Value *value )

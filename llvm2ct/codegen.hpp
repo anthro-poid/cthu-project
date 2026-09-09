@@ -76,10 +76,10 @@ namespace llvm2ct
 
         /* use() calls this the first time it sees a value with no producer
          * of its own — that's correct for an llvm::Argument (its value
-         * arrives via the call), but a ConstantInt needs an actual cons_N
+         * arrives via the call), but a ConstantInt needs an actual value
          * emitted, or the compiled output reads from a stack nothing ever
-         * wrote to. Only literal 0..15 are handled (cons_0..cons_15 are all
-         * builtins.ct provides) — larger constants aren't handled yet.
+         * wrote to. Values above 15 are assembled one hexadecimal digit at
+         * a time with cons_N, shl, and or.
          *
          * struct_name is the caller's choice, not derived here: a
          * ConstantInt is uniqued by LLVM (every literal `5` of type i32 is
@@ -89,6 +89,10 @@ namespace llvm2ct
          * instruction's own (unshared) result, there's no reliable
          * per-occurrence signal to read here. */
         void materialize_constant( uint16_t stack, llvm::ConstantInt &c, const std::string &struct_name );
+        void emit_nibble( uint16_t stack, uint8_t value,
+                          const std::string &struct_name, unsigned width );
+        void append_nibble( uint16_t accumulator, uint16_t out, uint8_t value,
+                            const std::string &struct_name, unsigned width );
 
         /* The LLVM type's own bit width, not anything from debug info: C
          * promotes char/short arithmetic to int before the actual
