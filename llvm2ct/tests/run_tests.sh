@@ -33,12 +33,17 @@ for f in c/*.ll ll/*.ll; do
         continue
     fi
 
-    if ! "$LLVM2CT" "$f" > /dev/null || ! mv out.ct "$name.ct"; then
+    if ! "$LLVM2CT" "$f" > /dev/null ||
+            ! mv out.ct "$name.ct" ||
+            ! mv out.prelude.ct "$name.prelude.ct" ||
+            ! mv out.builtins.ct "$name.builtins.ct"; then
         echo -e "${RED}FAIL $f${NC}"
         continue
     fi
 
-    if actual=$(python3 "$CTHUVM" --print-result "$PRELUDE" "$BUILTINS" "$name.ct" \
+    if actual=$(python3 "$CTHUVM" --print-result \
+            "$PRELUDE" "$BUILTINS" \
+            "$name.prelude.ct" "$name.builtins.ct" "$name.ct" \
             2> /dev/null); then
         if [ "$actual" = "$expected" ]; then
             echo -e "${GREEN}PASS $f${NC}"
@@ -50,4 +55,6 @@ for f in c/*.ll ll/*.ll; do
     fi
 done
 
-rm -f c/*.ll c/*.ct ll/*.ct
+rm -f c/*.ll c/*.ct c/*.prelude.ct c/*.builtins.ct \
+      ll/*.ct ll/*.prelude.ct ll/*.builtins.ct \
+      out.ct out.prelude.ct out.builtins.ct
