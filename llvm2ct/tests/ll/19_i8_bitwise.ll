@@ -1,5 +1,6 @@
 ; Hand-written: i8 and/or/xor/shl/lshr/ashr, unreachable from C (integer
 ; promotion).
+; EXPECT: 1
 define i8 @main() {
 run:
   %a = and i8 12, 10

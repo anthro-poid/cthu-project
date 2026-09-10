@@ -4,6 +4,7 @@
 ; sext/sext/add-i32/trunc, not add i8). This directly exercises the i8
 ; width path in codegen that no C source can reach without sext/trunc/zext
 ; support, which codegen doesn't have yet.
+; EXPECT: 7
 define i8 @main() {
 entry:
   %a = add i8 3, 4

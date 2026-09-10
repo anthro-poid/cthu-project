@@ -1,5 +1,6 @@
 ; Exercise multi-nibble i8 constants through arithmetic, reuse, and an
 ; unsigned comparison without introducing unsupported i1 arithmetic.
+; EXPECT: 1
 define i8 @main() {
 run:
   %a = add i8 200, 55

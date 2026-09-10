@@ -1,3 +1,4 @@
+// EXPECT: 22371
 int main()
 {
     unsigned int a = 4000000000u;

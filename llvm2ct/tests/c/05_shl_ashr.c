@@ -1,3 +1,4 @@
+// EXPECT: 10
 int main()
 {
     int a = 5;

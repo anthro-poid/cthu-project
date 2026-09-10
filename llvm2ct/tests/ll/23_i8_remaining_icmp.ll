@@ -1,6 +1,7 @@
 ; Exercise the i8 comparison predicates not covered together by the earlier
 ; hand-written tests. The boolean results are not combined: i1 arithmetic and
 ; duplication are not supported by codegen yet.
+; EXPECT: 1
 define i1 @main() {
 run:
   %a = sub i8 3, 9

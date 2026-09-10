@@ -1,3 +1,4 @@
+// EXPECT: 224
 int main()
 {
     int value = 0x123456f0;

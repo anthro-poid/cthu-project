@@ -1,6 +1,7 @@
 ; LLVM uniques equal constants. Reusing a synthesized multi-nibble value
 ; throughout this block exercises the use-count driven dup chain and stack
 ; reclamation for a ConstantInt.
+; EXPECT: 301991024
 define i32 @main() {
 run:
   %a = add i32 305419896, 305419896

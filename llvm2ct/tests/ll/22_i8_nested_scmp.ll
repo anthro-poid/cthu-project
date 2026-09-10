@@ -2,6 +2,7 @@
 ; three times (a two-deep dup chain) feeding a final signed comparison —
 ; same free-list stress as 21_i8_nested_cmp.ll but through the signed
 ; builtin table.
+; EXPECT: 4
 define i8 @main() {
 run:
   %a = sdiv i8 13, 4

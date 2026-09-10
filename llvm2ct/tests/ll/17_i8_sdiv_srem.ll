@@ -1,4 +1,5 @@
 ; Hand-written: i8 sdiv/srem, unreachable from C (integer promotion).
+; EXPECT: 4
 define i8 @main() {
 run:
   %q = sdiv i8 13, 4

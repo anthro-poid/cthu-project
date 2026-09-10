@@ -9,21 +9,29 @@ from interpret    import Interpret
 
 
 def main() -> None:
-    if len( sys.argv ) < 3:
-        print( "Usage: python3 cthuvm.py <prelude.ct> <builtins.ct> <source.ct>" ) 
+    args = sys.argv[ 1 : ]
+    print_result = False
+
+    if args and args[ 0 ] == "--print-result":
+        print_result = True
+        args = args[ 1 : ]
+
+    if len( args ) != 3:
+        print( "Usage: python3 cthuvm.py [--print-result] "
+               "<prelude.ct> <builtins.ct> <source.ct>" )
         sys.exit( 1 )
 
     prelude_tokens: list[ Token ] = []
     builtin_tokens: list[ Token ] = []
     source_tokens:  list[ Token ] = []
 
-    with open( sys.argv[ 1 ] ) as f:
+    with open( args[ 0 ] ) as f:
         prelude_tokens = Lexer( f ).tokenize()
 
-    with open( sys.argv[ 2 ] ) as f:
+    with open( args[ 1 ] ) as f:
         builtin_tokens = Lexer( f ).tokenize()
 
-    with open( sys.argv[ 3 ] ) as f:
+    with open( args[ 2 ] ) as f:
         source_tokens = Lexer( f ).tokenize()
 
     parser = Parser()
@@ -38,7 +46,13 @@ def main() -> None:
     i = Interpret( executable.run_idx, executable.lambdas )
     i.run()
 
-    assert i.check_emptiness()
+    if print_result:
+        assert len( i.executing.output ) == 1
+        result = i.pop( i.executing.output[ 0 ] )
+        print( int( result ) if isinstance( result, bool ) else result )
+
+    if not print_result:
+        assert i.check_emptiness()
 
 
 if __name__ == '__main__':

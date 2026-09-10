@@ -1,5 +1,6 @@
 ; Exercise all conversion builtins, including two consumers of the truncated
 ; value so the width-specific duplication path is used before extension.
+; EXPECT: 240
 define i32 @main() {
 run:
   %byte = trunc i32 305419896 to i8

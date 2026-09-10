@@ -1,3 +1,4 @@
+// EXPECT: 4294967292
 int main()
 {
     int a = 3;

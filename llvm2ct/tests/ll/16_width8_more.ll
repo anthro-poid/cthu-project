@@ -2,6 +2,7 @@
 ; i8 sub/mul/icmp, none of which any C source can reach directly (C
 ; promotes char arithmetic to i32 before the actual op, as verified
 ; earlier this session).
+; EXPECT: 6
 define i8 @main() {
 run:
   %s = sub i8 10, 4

@@ -1,5 +1,6 @@
 ; Negative literals arrive as their full two's-complement bit patterns and
 ; therefore exercise all eight hexadecimal digits during materialization.
+; EXPECT: 134200939
 define i32 @main() {
 run:
   %q = sdiv i32 -123456789, 12345

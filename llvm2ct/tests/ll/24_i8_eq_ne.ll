@@ -1,6 +1,7 @@
 ; Equality is signedness-independent, but has separate width-specific Cthu
 ; builtins. Keep both results live as independent values; i1 arithmetic is not
 ; part of the currently supported LLVM subset.
+; EXPECT: 1
 define i1 @main() {
 run:
   %a = mul i8 3, 4

@@ -2,6 +2,7 @@
 ; both %a and the shared constant 4) feeding a final unsigned comparison,
 ; stressing the free-list type-partitioning fix in vm/symtab.py (a bool
 ; output must not reuse a freed w₈ slot as if it were still w₈).
+; EXPECT: 10
 define i8 @main() {
 run:
   %a = add i8 3, 4

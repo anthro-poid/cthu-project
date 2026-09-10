@@ -20,10 +20,34 @@ done
 
 for f in c/*.ll ll/*.ll; do
     name="${f%.ll}"
+    source="$f"
 
-    "$LLVM2CT" "$f" > /dev/null && mv out.ct "$name.ct" \
-        && python3 "$CTHUVM" "$PRELUDE" "$BUILTINS" "$name.ct" > /dev/null 2>&1 \
-        && echo -e "${GREEN}PASS $f${NC}" || echo -e "${RED}FAIL $f${NC}"
+    if [ -f "$name.c" ]; then
+        source="$name.c"
+    fi
+
+    expected=$(sed -n 's/.*EXPECT:[[:space:]]*//p' "$source" | head -n 1)
+
+    if [ -z "$expected" ]; then
+        echo -e "${RED}FAIL $f: missing EXPECT${NC}"
+        continue
+    fi
+
+    if ! "$LLVM2CT" "$f" > /dev/null || ! mv out.ct "$name.ct"; then
+        echo -e "${RED}FAIL $f${NC}"
+        continue
+    fi
+
+    if actual=$(python3 "$CTHUVM" --print-result "$PRELUDE" "$BUILTINS" "$name.ct" \
+            2> /dev/null); then
+        if [ "$actual" = "$expected" ]; then
+            echo -e "${GREEN}PASS $f${NC}"
+        else
+            echo -e "${RED}FAIL $f: expected $expected, got $actual${NC}"
+        fi
+    else
+        echo -e "${RED}FAIL $f${NC}"
+    fi
 done
 
 rm -f c/*.ll c/*.ct ll/*.ct

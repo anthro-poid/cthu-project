@@ -1,3 +1,4 @@
+// EXPECT: 13
 int main()
 {
     int a = 9;

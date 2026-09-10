@@ -1,3 +1,4 @@
+// EXPECT: 3
 int main()
 {
     unsigned int a = 12;
