@@ -112,7 +112,7 @@ def bv_eq( vm: 'Interpret', params: list[ int ], size: int ) -> None:
 
 def bv_ne( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], l == r )
+    vm.push( params[ 2 ], l != r )
 
 def bv_slt( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
@@ -156,8 +156,7 @@ def bv_shl( vm: 'Interpret', params: list[ int ], size: int ) -> None:
 
 def bv_ashr( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    h = l & ( 1 << size )
-    vm.push( params[ 2 ], bv_norm( ( l >> r ) | h, size ) )
+    vm.push( params[ 2 ], bv_norm( bv_signed( l, size ) >> r, size ) )
 
 def bv_lshr( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
