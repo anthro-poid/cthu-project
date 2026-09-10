@@ -1,0 +1,19 @@
+signature f₀⁰[ F, S, B ] : simple[ F, S, B ]
+(
+    call ∷ F → ∅
+)
+
+signature f₁¹[ F, S, B, I, O ] : simple[ F, S, B ]
+(
+    call ∷ F × I → O
+)
+
+signature f₂¹[ F, S, B, I, O ] : simple[ F, S, B ]
+(
+    call ∷ F × I × I → O
+)
+
+signature f₃¹[ F, S, B, I, O ] : simple[ F, S, B ]
+(
+    call ∷ F × I × I × I → O
+)

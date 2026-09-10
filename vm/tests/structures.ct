@@ -1,0 +1,75 @@
+structure f : f₀⁰[ func, stck, bool ]
+(
+    join = builtin_func_join ; lattice
+    bot  = builtin_func_bot  ; lattice
+    top  = builtin_func_top  ; lattice
+    opt  = builtin_func_opt  ; lattice
+
+    fork = builtin_func_fork ; linear
+    move = builtin_func_move ; linear
+    push = builtin_func_push ; linear
+    pop  = builtin_func_pop  ; linear
+
+    drop = builtin_func_drop ; affine
+
+    dup  = builtin_func_dup  ; simple
+
+    call = builtin_func_call
+)
+
+structure fᵢⁱ : f₁¹[ func, stck, bool, w₃₂, w₃₂ ]
+(
+    join = builtin_func_join ; lattice
+    bot  = builtin_func_bot  ; lattice
+    top  = builtin_func_top  ; lattice
+    opt  = builtin_func_opt  ; lattice
+
+    fork = builtin_func_fork ; linear
+    move = builtin_func_move ; linear
+    push = builtin_func_push ; linear
+    pop  = builtin_func_pop  ; linear
+
+    drop = builtin_func_drop ; affine
+
+    dup  = builtin_func_dup  ; simple
+
+    call = builtin_func_call ; f₁¹
+)
+
+structure fᵢᵢⁱ : f₂¹[ func, stck, bool, w₃₂, w₃₂ ]
+(
+    join = builtin_func_join ; lattice
+    bot  = builtin_func_bot  ; lattice
+    top  = builtin_func_top  ; lattice
+    opt  = builtin_func_opt  ; lattice
+
+    fork = builtin_func_fork ; linear
+    move = builtin_func_move ; linear
+    push = builtin_func_push ; linear
+    pop  = builtin_func_pop  ; linear
+
+    drop = builtin_func_drop ; affine
+
+    dup  = builtin_func_dup  ; simple
+
+    call = builtin_func_call ; f₂¹
+)
+
+structure fᵢᵢᵢⁱ : f₃¹[ func, stck, bool, w₃₂, w₃₂ ]
+(
+    join = builtin_func_join ; lattice
+    bot  = builtin_func_bot  ; lattice
+    top  = builtin_func_top  ; lattice
+    opt  = builtin_func_opt  ; lattice
+
+    fork = builtin_func_fork ; linear
+    move = builtin_func_move ; linear
+    push = builtin_func_push ; linear
+    pop  = builtin_func_pop  ; linear
+
+    drop = builtin_func_drop ; affine
+
+    dup  = builtin_func_dup  ; simple
+
+    call = builtin_func_call ; f₃¹
+)
