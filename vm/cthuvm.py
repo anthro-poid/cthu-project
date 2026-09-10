@@ -16,30 +16,19 @@ def main() -> None:
         print_result = True
         args = args[ 1 : ]
 
-    if len( args ) != 3:
+    if len( args ) < 2:
         print( "Usage: python3 cthuvm.py [--print-result] "
-               "<prelude.ct> <builtins.ct> <source.ct>" )
+               "<source.ct> [source.ct ...]" )
         sys.exit( 1 )
 
-    prelude_tokens: list[ Token ] = []
-    builtin_tokens: list[ Token ] = []
-    source_tokens:  list[ Token ] = []
-
-    with open( args[ 0 ] ) as f:
-        prelude_tokens = Lexer( f ).tokenize()
-
-    with open( args[ 1 ] ) as f:
-        builtin_tokens = Lexer( f ).tokenize()
-
-    with open( args[ 2 ] ) as f:
-        source_tokens = Lexer( f ).tokenize()
-
     parser = Parser()
-    parser.parse( prelude_tokens )
-    parser.parse( builtin_tokens )
-    parser.parse( source_tokens )
-    parser.check_undefined_ops()
 
+    for arg in args:
+        with open( arg ) as f:
+            tokens = Lexer( f ).tokenize()
+            parser.parse( tokens )
+
+    parser.check_undefined_ops()
     program = parser.get_program()
     executable = Substitution( program ).run()
 
