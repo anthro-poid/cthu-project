@@ -1,5 +1,7 @@
 #include "codegen.hpp"
 
+#include <algorithm>
+
 namespace llvm2ct
 {
 
@@ -51,10 +53,14 @@ uint16_t codegen::use( llvm::Value *value, const std::string &struct_name )
          * itself dup again, if further reads remain after that one). */
         uint16_t copy_a = allocate_stack();
         uint16_t copy_b = allocate_stack();
-        bool w8 = width_of( value ) == 8;
+        unsigned width = llvm::cast< llvm::IntegerType >( value->getType() )->getBitWidth();
+        bool is_bool = width == 1;
+        bool w8 = width == 8;
 
-        cthu::insn dup{ w8 ? "w₈" : "w₃₂", "dup",
-                        w8 ? cthu::builtin::builtin_bv8dup : cthu::builtin::builtin_bv32dup };
+        cthu::insn dup{ is_bool ? "bool" : ( w8 ? "w₈" : "w₃₂" ), "dup",
+                        is_bool ? cthu::builtin::builtin_bool_dup
+                                : ( w8 ? cthu::builtin::builtin_bv8dup
+                                       : cthu::builtin::builtin_bv32dup ) };
         dup.add_in( stack );
         dup.add_out( copy_a );
         dup.add_out( copy_b );
@@ -224,6 +230,34 @@ std::string codegen::struct_name_for( llvm::Value *value )
     return struct_name( is_unsigned, width_of( value ) );
 }
 
+static std::string function_type_name( llvm::Type *type )
+{
+    if ( type->isIntegerTy( 1 ) )
+        return "b";
+    if ( type->isIntegerTy( 8 ) )
+        return "w8";
+    if ( type->isIntegerTy( 32 ) )
+        return "w32";
+
+    assert( false && "only bool/8/32-bit function arguments are supported so far" );
+    return {};
+}
+
+std::string codegen::function_structure_name( llvm::FunctionType *type )
+{
+    std::string name = "f";
+
+    for ( llvm::Type *parameter : type->params() )
+        name += "_" + function_type_name( parameter );
+
+    name += "__";
+
+    if ( !type->getReturnType()->isVoidTy() )
+        name += function_type_name( type->getReturnType() );
+
+    return name;
+}
+
 void codegen::commit_frees()
 {
     for ( uint16_t stack : _pending_frees )
@@ -248,8 +282,8 @@ void codegen::visitModule( llvm::Module & )
 void codegen::visitFunction( llvm::Function &function )
 {
     _symtab.get_structure( &function );
-    if ( function.getName() == "main" )
-        _symtab.get_subroutine( &function.getEntryBlock() ).name = "run";
+    _symtab.get_subroutine( &function.getEntryBlock() ).name =
+        function.getName() == "main" ? "run" : function.getName().str();
 }
 
 void codegen::visitBasicBlock( llvm::BasicBlock &block )
@@ -265,12 +299,76 @@ void codegen::visitBasicBlock( llvm::BasicBlock &block )
     for ( auto &instruction : block )
         for ( auto &operand : instruction.operands() )
             ++ _remaining_uses[ operand.get() ];
+
+    if ( &block == &block.getParent()->getEntryBlock() )
+        for ( llvm::Argument &argument : block.getParent()->args() )
+        {
+            uint16_t stack = define( &argument );
+            _current_subr->input.push_back( stack );
+        }
 }
 
 void codegen::visitReturnInst( llvm::ReturnInst &instruction )
 {
     if ( auto *value = instruction.getReturnValue() )
-        _current_subr->output.push_back( use( value ) );
+    {
+        uint16_t output = use( value );
+
+        if ( std::find( _current_subr->input.begin(), _current_subr->input.end(), output )
+                != _current_subr->input.end() )
+        {
+            uint16_t moved = _next_stack ++;
+            unsigned width = llvm::cast< llvm::IntegerType >( value->getType() )->getBitWidth();
+            bool is_bool = width == 1;
+            bool w8 = width == 8;
+            cthu::insn move{ is_bool ? "bool" : ( w8 ? "w₈" : "w₃₂" ), "move",
+                             is_bool ? cthu::builtin::builtin_bool_move
+                                     : ( w8 ? cthu::builtin::builtin_bv8move
+                                            : cthu::builtin::builtin_bv32move ) };
+            move.add_in( output );
+            move.add_out( moved );
+            _current_subr->body.push_back( std::move( move ) );
+            output = moved;
+        }
+
+        _current_subr->output.push_back( output );
+    }
+
+    for ( llvm::Argument &argument : instruction.getFunction()->args() )
+        drop_unused( &argument );
+}
+
+void codegen::visitCallInst( llvm::CallInst &instruction )
+{
+    llvm::Function *callee = instruction.getCalledFunction();
+
+    if ( callee && callee->isIntrinsic() )
+        return;
+
+    assert( callee && !callee->isDeclaration() && "only direct calls to defined functions are supported" );
+    assert( callee->size() == 1 && "only single-block callees are supported so far" );
+
+    uint16_t function_stack = allocate_stack();
+    cthu::insn function_value{ _symtab.get_structure( callee ),
+                               _symtab.get_subroutine( &callee->getEntryBlock() ) };
+    function_value.add_out( function_stack );
+    _current_subr->body.push_back( std::move( function_value ) );
+
+    cthu::insn call{ function_structure_name( callee->getFunctionType() ), "call",
+                     cthu::builtin::builtin_func_call };
+    call.add_in( function_stack );
+
+    for ( llvm::Value *argument : instruction.args() )
+    {
+        bool is_bool = argument->getType()->isIntegerTy( 1 );
+        call.add_in( use( argument, is_bool ? "bool" : struct_name_for( argument ) ) );
+    }
+
+    if ( !instruction.getType()->isVoidTy() )
+        call.add_out( define( &instruction ) );
+
+    _current_subr->body.push_back( std::move( call ) );
+    _pending_frees.push_back( function_stack );
 }
 
 void codegen::binop_insn( llvm::Instruction &instruction,

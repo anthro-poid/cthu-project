@@ -55,6 +55,7 @@ namespace cthu
     struct subr_t
     {
         std::string name;
+        std::vector< uint16_t > input;
         std::vector< uint16_t > output;
         std::vector< insn > body;
     };

@@ -6,6 +6,7 @@
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/BinaryFormat/Dwarf.h>
 #include <llvm/IR/Constants.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
@@ -119,6 +120,8 @@ namespace llvm2ct
          * (e.g. default to "signed" on missing debug info for a UDiv). */
         std::string struct_name_for( llvm::Value *value );
 
+        std::string function_structure_name( llvm::FunctionType *type );
+
         /* Takes the base Instruction, not BinaryOperator, so this covers
          * ICmpInst (2 operands in, 1 out, same as a binary op) too. */
         void binop_insn( llvm::Instruction &instruction,
@@ -136,6 +139,7 @@ namespace llvm2ct
         void visitBasicBlock( llvm::BasicBlock &block );
 
         void visitReturnInst( llvm::ReturnInst &instruction );
+        void visitCallInst( llvm::CallInst &instruction );
         void visitICmpInst( llvm::ICmpInst &instruction );
         void visitTruncInst( llvm::TruncInst &instruction );
         void visitSExtInst( llvm::SExtInst &instruction );

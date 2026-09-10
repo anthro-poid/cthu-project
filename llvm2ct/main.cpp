@@ -8,6 +8,7 @@
 #include <llvm/Support/SourceMgr.h>
 
 #include <fstream>
+#include <set>
 
 int main( int argc, char *argv[] )
 {
@@ -34,6 +35,23 @@ int main( int argc, char *argv[] )
 
     for ( auto &[ key, structure ] : c._symtab.structures )
         out << structure;
+
+    std::ofstream prelude( "out.prelude.ct" );
+    std::ofstream builtins( "out.builtins.ct" );
+    std::set< std::string > emitted_signatures;
+    std::set< std::string > emitted_structures;
+
+    for ( llvm::Function &function : *c._module )
+        if ( !function.isDeclaration() )
+        {
+            llvm::FunctionType *type = function.getFunctionType();
+
+            if ( emitted_signatures.insert( cthu::function_signature_name( type ) ).second )
+                cthu::print_function_signature( prelude, type );
+
+            if ( emitted_structures.insert( cthu::function_type_name( type ) ).second )
+                cthu::print_function_structure( builtins, type );
+        }
 
     return 0;
 }
