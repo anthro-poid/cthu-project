@@ -234,7 +234,7 @@ void codegen::visitBasicBlock( llvm::BasicBlock &block )
 void codegen::visitReturnInst( llvm::ReturnInst &instruction )
 {
     if ( auto *value = instruction.getReturnValue() )
-        use( value );
+        _current_subr->output.push_back( use( value ) );
 }
 
 void codegen::binop_insn( llvm::Instruction &instruction,

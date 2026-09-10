@@ -27,7 +27,12 @@ namespace cthu
 
     inline auto &operator<<( auto &os, const subr_t &s )
     {
-        os << "    " << s.name << " = λ\n    (\n";
+        os << "    " << s.name << " = λ";
+
+        if ( !s.output.empty() )
+            os << " -> " << s.output;
+
+        os << "\n    (\n";
 
         for ( const insn &i : s.body )
             os << i;
