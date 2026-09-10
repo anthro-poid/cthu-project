@@ -72,6 +72,7 @@ namespace llvm2ct
          * decide its own structure. Defaults to "i₃₂" for call sites with
          * no natural signedness context (e.g. visitStoreInst). */
         uint16_t use( llvm::Value *value, const std::string &struct_name = "i₃₂" );
+        void drop_unused( llvm::Value *value );
         void commit_frees();
 
         /* use() calls this the first time it sees a value with no producer

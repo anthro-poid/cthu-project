@@ -51,8 +51,7 @@ def main() -> None:
         result = i.pop( i.executing.output[ 0 ] )
         print( int( result ) if isinstance( result, bool ) else result )
 
-    if not print_result:
-        assert i.check_emptiness()
+    assert i.check_emptiness()
 
 
 if __name__ == '__main__':

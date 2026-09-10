@@ -20,7 +20,9 @@ namespace cthu
             os << " " << i.in;
 
         if ( !i.out.empty() )
-            os << " -> " << i.out << "\n";
+            os << " -> " << i.out;
+
+        os << "\n";
 
         return os;
     }

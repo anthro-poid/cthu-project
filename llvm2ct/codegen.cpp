@@ -70,6 +70,38 @@ uint16_t codegen::use( llvm::Value *value, const std::string &struct_name )
     return stack;
 }
 
+void codegen::drop_unused( llvm::Value *value )
+{
+    auto it = _stack_of.find( value );
+
+    if ( it == _stack_of.end() )
+        return;
+
+    unsigned width = llvm::cast< llvm::IntegerType >( value->getType() )->getBitWidth();
+    std::string structure;
+    cthu::builtin code;
+
+    if ( width == 1 )
+    {
+        structure = "bool";
+        code = cthu::builtin::builtin_bool_drop;
+    }
+    else
+    {
+        assert( ( width == 8 || width == 32 ) && "only bool/8/32-bit values are supported so far" );
+        structure = width == 8 ? "w₈" : "w₃₂";
+        code = width == 8 ? cthu::builtin::builtin_bv8drop
+                          : cthu::builtin::builtin_bv32drop;
+    }
+
+    cthu::insn drop{ structure, "drop", code };
+    drop.add_in( it->second );
+    _current_subr->body.push_back( std::move( drop ) );
+
+    _pending_frees.push_back( it->second );
+    _stack_of.erase( it );
+}
+
 void codegen::emit_nibble( uint16_t stack, uint8_t value,
                            const std::string &struct_name, unsigned width )
 {
@@ -203,6 +235,10 @@ void codegen::commit_frees()
 void codegen::visit( llvm::Instruction &instruction )
 {
     llvm::InstVisitor< codegen >::visit( instruction );
+
+    if ( !instruction.getType()->isVoidTy() && _remaining_uses.lookup( &instruction ) == 0 )
+        drop_unused( &instruction );
+
     commit_frees();
 }
 
