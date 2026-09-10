@@ -270,8 +270,49 @@ void codegen::cast_insn( llvm::CastInst &instruction, const std::string &source_
     _current_subr->body.push_back( std::move( i ) );
 }
 
+void codegen::bool_sext_insn( llvm::CastInst &instruction, unsigned width )
+{
+    uint16_t in = use( instruction.getOperand( 0 ), "bool" );
+    uint16_t extended = allocate_stack();
+
+    cthu::insn ext{ width == 8 ? "b⁸" : "b³²", "ext",
+                    width == 8 ? cthu::builtin::builtin_bool_ext8
+                               : cthu::builtin::builtin_bool_ext32 };
+    ext.add_in( in );
+    ext.add_out( extended );
+    _current_subr->body.push_back( std::move( ext ) );
+
+    uint16_t zero = allocate_stack();
+    emit_nibble( zero, 0, struct_name( false, width ), width );
+
+    uint16_t out = define( &instruction );
+    cthu::insn negate{ struct_name( false, width ), "sub",
+                       width == 8 ? cthu::builtin::builtin_bv8sub
+                                  : cthu::builtin::builtin_bv32sub };
+    negate.add_in( zero );
+    negate.add_in( extended );
+    negate.add_out( out );
+    _current_subr->body.push_back( std::move( negate ) );
+
+    _free_stacks.push_back( zero );
+    _free_stacks.push_back( extended );
+}
+
 void codegen::visitTruncInst( llvm::TruncInst &instruction )
 {
+    unsigned target_width = llvm::cast< llvm::IntegerType >(
+        instruction.getType() )->getBitWidth();
+
+    if ( target_width == 1 )
+    {
+        unsigned source_width = width_of( instruction.getOperand( 0 ) );
+        cast_insn( instruction, struct_name_for( instruction.getOperand( 0 ) ),
+                   source_width == 8 ? "b⁸" : "b³²", "cut",
+                   source_width == 8 ? cthu::builtin::builtin_bv8cutbool
+                                     : cthu::builtin::builtin_bv32cutbool );
+        return;
+    }
+
     assert( width_of( instruction.getOperand( 0 ) ) == 32 );
     assert( width_of( &instruction ) == 8 );
 
@@ -285,9 +326,12 @@ void codegen::visitSExtInst( llvm::SExtInst &instruction )
     unsigned source_width = llvm::cast< llvm::IntegerType >(
         instruction.getOperand( 0 )->getType() )->getBitWidth();
 
-    /* There is no Cthu boolean-to-bitvector conversion builtin yet. */
     if ( source_width == 1 )
+    {
+        unsigned target_width = width_of( &instruction );
+        bool_sext_insn( instruction, target_width );
         return;
+    }
 
     assert( width_of( instruction.getOperand( 0 ) ) == 8 );
     assert( width_of( &instruction ) == 32 );
@@ -300,9 +344,14 @@ void codegen::visitZExtInst( llvm::ZExtInst &instruction )
     unsigned source_width = llvm::cast< llvm::IntegerType >(
         instruction.getOperand( 0 )->getType() )->getBitWidth();
 
-    /* Clang emits this for functions that return a comparison result. */
     if ( source_width == 1 )
+    {
+        unsigned target_width = width_of( &instruction );
+        cast_insn( instruction, "bool", target_width == 8 ? "b⁸" : "b³²", "ext",
+                   target_width == 8 ? cthu::builtin::builtin_bool_ext8
+                                     : cthu::builtin::builtin_bool_ext32 );
         return;
+    }
 
     assert( width_of( instruction.getOperand( 0 ) ) == 8 );
     assert( width_of( &instruction ) == 32 );

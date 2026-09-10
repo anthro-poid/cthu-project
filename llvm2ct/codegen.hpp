@@ -125,6 +125,7 @@ namespace llvm2ct
         void cast_insn( llvm::CastInst &instruction, const std::string &source_struct_name,
                         const std::string &cast_struct_name, const std::string &op_name,
                         cthu::builtin code );
+        void bool_sext_insn( llvm::CastInst &instruction, unsigned width );
 
         using llvm::InstVisitor< codegen >::visit;
         void visit( llvm::Instruction &instruction );

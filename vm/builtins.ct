@@ -310,3 +310,15 @@ structure u₈³² : convert[ w₈, w₃₂ ]
     cut = builtin_bv32cut8
     ext = builtin_bv8zext32
 )
+
+structure b⁸ : convert[ bool, w₈ ]
+(
+    cut = builtin_bv8cutbool
+    ext = builtin_bool_ext8
+)
+
+structure b³² : convert[ bool, w₃₂ ]
+(
+    cut = builtin_bv32cutbool
+    ext = builtin_bool_ext32
+)

@@ -196,6 +196,14 @@ def ext( vm: 'Interpret', params: list[ int ], f: int, t: int,
 
     vm.push( params[ 1 ], bv_norm( num, t ) )
 
+def bool_cut( vm: 'Interpret', params: list[ int ], size: int ) -> None:
+    vm.push( params[ 1 ], bool( bv_norm( vm.pop( params[ 0 ] ), size ) & 1 ) )
+
+def bool_ext( vm: 'Interpret', params: list[ int ], size: int ) -> None:
+    value = vm.pop( params[ 0 ] )
+    assert isinstance( value, bool )
+    vm.push( params[ 1 ], int( value ) )
+
 ### Bool operations
 
 def bool_join( vm: 'Interpret', params: list[ int ] ) -> None:
@@ -508,7 +516,12 @@ name_to_code: dict[ str, int ] = {
     "builtin_func_opt":     0xeff_007d,
     "builtin_func_top":     0xeff_007e,
     "builtin_func_bot":     0xeff_007f,
-    "builtin_func_join":    0xeff_0080
+    "builtin_func_join":    0xeff_0080,
+
+    "builtin_bv8cutbool":   0xeff_0081,
+    "builtin_bool_ext8":    0xeff_0082,
+    "builtin_bv32cutbool":  0xeff_0083,
+    "builtin_bool_ext32":   0xeff_0084
 }
 
 code_to_subr: dict[ int, Any ] = {
@@ -647,5 +660,10 @@ code_to_subr: dict[ int, Any ] = {
     0xeff_007d: func_opt,
     0xeff_007e: func_top,
     0xeff_007f: func_bot,
-    0xeff_0080: func_join
+    0xeff_0080: func_join,
+
+    0xeff_0081: lambda vm, p: bool_cut( vm, p, 8 ),
+    0xeff_0082: lambda vm, p: bool_ext( vm, p, 8 ),
+    0xeff_0083: lambda vm, p: bool_cut( vm, p, 32 ),
+    0xeff_0084: lambda vm, p: bool_ext( vm, p, 32 )
 }

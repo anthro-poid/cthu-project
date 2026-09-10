@@ -136,5 +136,9 @@ namespace cthu
         builtin_func_top,
         builtin_func_bot,
         builtin_func_join,
+        builtin_bv8cutbool,
+        builtin_bool_ext8,
+        builtin_bv32cutbool,
+        builtin_bool_ext32,
     };
 }
