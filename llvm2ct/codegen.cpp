@@ -65,8 +65,7 @@ uint16_t codegen::use( llvm::Value *value, const std::string &struct_name )
                                 : ( w8 ? cthu::builtin::builtin_bv8dup
                                        : cthu::builtin::builtin_bv32dup ) };
         dup.add_in( stack );
-        dup.add_out( copy_a );
-        dup.add_out( copy_b );
+        dup.add_out( copy_a, copy_b );
 
         _current_subr->body.push_back( std::move( dup ) );
 
@@ -169,8 +168,7 @@ void codegen::append_nibble( uint16_t accumulator, uint16_t out, uint8_t value,
 
     uint16_t shifted = allocate_stack();
     cthu::insn shift_insn{ struct_name, "shl", shl };
-    shift_insn.add_in( accumulator );
-    shift_insn.add_in( shift_stack );
+    shift_insn.add_in( accumulator, shift_stack );
     shift_insn.add_out( shifted );
     _current_subr->body.push_back( std::move( shift_insn ) );
 
@@ -184,8 +182,7 @@ void codegen::append_nibble( uint16_t accumulator, uint16_t out, uint8_t value,
     emit_nibble( digit_stack, value, struct_name, width );
 
     cthu::insn or_insn{ struct_name, "or", bit_or };
-    or_insn.add_in( shifted );
-    or_insn.add_in( digit_stack );
+    or_insn.add_in( shifted, digit_stack );
     or_insn.add_out( out );
     _current_subr->body.push_back( std::move( or_insn ) );
 
@@ -502,8 +499,7 @@ void codegen::binop_insn( llvm::Instruction &instruction,
     uint16_t out = define( &instruction );
 
     cthu::insn i{ struct_name, op_name, code };
-    i.add_in( lhs );
-    i.add_in( rhs );
+    i.add_in( lhs, rhs );
     i.add_out( out );
 
     _current_subr->body.push_back( std::move( i ) );
@@ -542,8 +538,7 @@ void codegen::bool_sext_insn( llvm::CastInst &instruction, unsigned width )
     cthu::insn negate{ struct_name( false, width ), "sub",
                        width == 8 ? cthu::builtin::builtin_bv8sub
                                   : cthu::builtin::builtin_bv32sub };
-    negate.add_in( zero );
-    negate.add_in( extended );
+    negate.add_in( zero, extended );
     negate.add_out( out );
     _current_subr->body.push_back( std::move( negate ) );
 
