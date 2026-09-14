@@ -1,5 +1,8 @@
 #include "codegen.hpp"
 
+#include <llvm/ADT/DenseSet.h>
+#include <llvm/IR/CFG.h>
+
 #include <algorithm>
 
 namespace llvm2ct
@@ -106,6 +109,17 @@ void codegen::drop_unused( llvm::Value *value )
 
     _pending_frees.push_back( it->second );
     _stack_of.erase( it );
+}
+
+void codegen::drop_remaining_values()
+{
+    std::vector< llvm::Value * > values;
+
+    for ( auto [ value, stack ] : _stack_of )
+        values.emplace_back( value );
+
+    for ( auto value : values )
+        drop_unused( value );
 }
 
 void codegen::emit_nibble( uint16_t stack, uint8_t value,
@@ -221,6 +235,9 @@ std::string codegen::struct_name( bool is_unsigned, unsigned width )
 
 std::string codegen::struct_name_for( llvm::Value *value )
 {
+    if ( value->getType()->isIntegerTy( 1 ) )
+        return "bool";
+
     bool is_unsigned = false;
 
     if ( auto *type = debug_type( value ) )
@@ -258,6 +275,74 @@ std::string codegen::function_structure_name( llvm::FunctionType *type )
     return name;
 }
 
+std::string codegen::function_structure_name( llvm::ArrayRef< llvm::Value * > inputs,
+                                               llvm::Type *output )
+{
+    std::string name = "f";
+
+    for ( llvm::Value *input : inputs )
+        name += "_" + function_type_name( input->getType() );
+
+    name += "__";
+
+    if ( !output->isVoidTy() )
+        name += function_type_name( output );
+
+    return name;
+}
+
+void codegen::compute_block_inputs( llvm::Function &function )
+{
+    llvm::DenseMap< llvm::BasicBlock *, llvm::DenseSet< llvm::Value * > > live_ins;
+    std::vector< llvm::Value * > values;
+
+    for ( llvm::Argument &argument : function.args() )
+        values.push_back( &argument );
+
+    for ( llvm::BasicBlock &block : function )
+        for ( llvm::Instruction &instruction : block )
+        {
+            values.push_back( &instruction );
+
+            for ( llvm::Value *operand : instruction.operands() )
+                if ( llvm::isa< llvm::Argument >( operand ) ||
+                     ( llvm::isa< llvm::Instruction >( operand ) &&
+                       llvm::cast< llvm::Instruction >( operand )->getParent() != &block ) )
+                    live_ins[ &block ].insert( operand );
+        }
+
+    bool changed;
+    do
+    {
+        changed = false;
+
+        for ( llvm::BasicBlock &block : llvm::reverse( function ) )
+            for ( llvm::BasicBlock *successor : llvm::successors( &block ) )
+                for ( llvm::Value *value : live_ins[ successor ] )
+                {
+                    /* Definition is either llvm::Instruction or llvm::Argument. */
+                    auto *definition = llvm::dyn_cast< llvm::Instruction >( value );
+
+                    if ( definition == nullptr || definition->getParent() != &block )
+                        changed |= live_ins[ &block ].insert( value ).second;
+                }
+    }
+    while ( changed );
+
+    for ( llvm::BasicBlock &block : function )
+    {
+        auto &inputs = _block_inputs[ &block ];
+
+        if ( &block == &function.getEntryBlock() )
+            for ( llvm::Argument &argument : function.args() )
+                inputs.push_back( &argument );
+        else
+            for ( llvm::Value *value : values )
+                if ( live_ins[ &block ].contains( value ) )
+                    inputs.push_back( value );
+    }
+}
+
 void codegen::commit_frees()
 {
     for ( uint16_t stack : _pending_frees )
@@ -281,6 +366,7 @@ void codegen::visitModule( llvm::Module & )
 
 void codegen::visitFunction( llvm::Function &function )
 {
+    compute_block_inputs( function );
     _symtab.get_structure( &function );
     _symtab.get_subroutine( &function.getEntryBlock() ).name =
         function.getName() == "main" ? "run" : function.getName().str();
@@ -300,12 +386,13 @@ void codegen::visitBasicBlock( llvm::BasicBlock &block )
         for ( auto &operand : instruction.operands() )
             ++ _remaining_uses[ operand.get() ];
 
-    if ( &block == &block.getParent()->getEntryBlock() )
-        for ( llvm::Argument &argument : block.getParent()->args() )
-        {
-            uint16_t stack = define( &argument );
-            _current_subr->input.push_back( stack );
-        }
+    for ( llvm::Value *value : _block_inputs[ &block ] )
+        _current_subr->input.push_back( define( value ) );
+
+    if ( auto *branch = llvm::dyn_cast< llvm::BranchInst >( block.getTerminator() ) )
+        if ( branch->isUnconditional() )
+            for ( llvm::Value *value : _block_inputs[ branch->getSuccessor( 0 ) ] )
+                ++ _remaining_uses[ value ];
 }
 
 void codegen::visitReturnInst( llvm::ReturnInst &instruction )
@@ -334,8 +421,40 @@ void codegen::visitReturnInst( llvm::ReturnInst &instruction )
         _current_subr->output.push_back( output );
     }
 
-    for ( llvm::Argument &argument : instruction.getFunction()->args() )
-        drop_unused( &argument );
+    drop_remaining_values();
+}
+
+void codegen::visitBranchInst( llvm::BranchInst &instruction )
+{
+    assert( instruction.isUnconditional() && "conditional branches are not supported yet" );
+
+    llvm::BasicBlock *target = instruction.getSuccessor( 0 );
+    auto &target_inputs = _block_inputs[ target ];
+    auto function_stack = allocate_stack();
+    cthu::insn func{ _symtab.get_structure( instruction.getFunction() ),
+                        _symtab.get_subroutine( target ) };
+    func.add_out( function_stack );
+    _current_subr->body.push_back( std::move( func ) );
+
+    llvm::Type *return_type = instruction.getFunction()->getReturnType();
+    cthu::insn call{ function_structure_name( target_inputs, return_type ), "call",
+                     cthu::builtin::builtin_func_call };
+    call.add_in( function_stack );
+
+    for ( llvm::Value *value : target_inputs )
+        call.add_in( use( value, struct_name_for( value ) ) );
+
+    drop_remaining_values();
+
+    if ( !return_type->isVoidTy() )
+    {
+        uint16_t output = _next_stack ++;
+        call.add_out( output );
+        _current_subr->output.push_back( output );
+    }
+
+    _current_subr->body.push_back( std::move( call ) );
+    _pending_frees.push_back( function_stack );
 }
 
 void codegen::visitCallInst( llvm::CallInst &instruction )
@@ -346,8 +465,6 @@ void codegen::visitCallInst( llvm::CallInst &instruction )
         return;
 
     assert( callee && !callee->isDeclaration() && "only direct calls to defined functions are supported" );
-    assert( callee->size() == 1 && "only single-block callees are supported so far" );
-
     uint16_t function_stack = allocate_stack();
     cthu::insn function_value{ _symtab.get_structure( callee ),
                                _symtab.get_subroutine( &callee->getEntryBlock() ) };
@@ -359,16 +476,18 @@ void codegen::visitCallInst( llvm::CallInst &instruction )
     call.add_in( function_stack );
 
     for ( llvm::Value *argument : instruction.args() )
-    {
-        bool is_bool = argument->getType()->isIntegerTy( 1 );
-        call.add_in( use( argument, is_bool ? "bool" : struct_name_for( argument ) ) );
-    }
+        call.add_in( use( argument, struct_name_for( argument ) ) );
 
     if ( !instruction.getType()->isVoidTy() )
         call.add_out( define( &instruction ) );
 
     _current_subr->body.push_back( std::move( call ) );
     _pending_frees.push_back( function_stack );
+}
+
+void codegen::visitPHINode( llvm::PHINode & )
+{
+    assert( false && "PHI nodes are not supported yet" );
 }
 
 void codegen::binop_insn( llvm::Instruction &instruction,

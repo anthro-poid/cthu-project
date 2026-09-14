@@ -2,6 +2,7 @@
 
 #include "core.hpp"
 
+#include <llvm/ADT/ArrayRef.h>
 #include <llvm/IR/DerivedTypes.h>
 
 namespace cthu
@@ -74,19 +75,25 @@ namespace cthu
         return {};
     }
 
-    inline std::string function_type_name( llvm::FunctionType *type )
+    inline std::string function_type_name( llvm::ArrayRef< llvm::Type * > inputs,
+                                           llvm::Type *output )
     {
         std::string name = "f";
 
-        for ( llvm::Type *parameter : type->params() )
+        for ( llvm::Type *parameter : inputs )
             name += "_" + function_type_code( parameter );
 
         name += "__";
 
-        if ( !type->getReturnType()->isVoidTy() )
-            name += function_type_code( type->getReturnType() );
+        if ( !output->isVoidTy() )
+            name += function_type_code( output );
 
         return name;
+    }
+
+    inline std::string function_type_name( llvm::FunctionType *type )
+    {
+        return function_type_name( type->params(), type->getReturnType() );
     }
 
     inline std::string scripted_number( size_t value, bool superscript )
@@ -108,11 +115,16 @@ namespace cthu
         return number;
     }
 
+    inline std::string function_signature_name( size_t inputs, bool has_output )
+    {
+        return "f" + scripted_number( inputs, false )
+                   + scripted_number( has_output ? 1 : 0, true );
+    }
+
     inline std::string function_signature_name( llvm::FunctionType *type )
     {
-        size_t outputs = type->getReturnType()->isVoidTy() ? 0 : 1;
-        return "f" + scripted_number( type->getNumParams(), false )
-                   + scripted_number( outputs, true );
+        return function_signature_name( type->getNumParams(),
+                                        !type->getReturnType()->isVoidTy() );
     }
 
     inline std::string cthu_type_name( llvm::Type *type )
@@ -128,51 +140,56 @@ namespace cthu
         return {};
     }
 
-    inline auto &print_function_signature( auto &os, llvm::FunctionType *type )
+    inline auto &print_function_signature( auto &os,
+                                            llvm::ArrayRef< llvm::Type * > inputs,
+                                            llvm::Type *output )
     {
-        std::string name = function_signature_name( type );
+        std::string name = function_signature_name( inputs.size(), !output->isVoidTy() );
         os << "signature " << name << "[ F, S, B";
 
-        for ( size_t i = 0; i < type->getNumParams(); ++ i )
+        for ( size_t i = 0; i < inputs.size(); ++ i )
             os << ", I" << i;
 
-        if ( !type->getReturnType()->isVoidTy() )
+        if ( !output->isVoidTy() )
             os << ", O";
 
         os << " ] : simple[ F, S, B ]\n(\n"
            << "    call ∷ F";
 
-        for ( size_t i = 0; i < type->getNumParams(); ++ i )
+        for ( size_t i = 0; i < inputs.size(); ++ i )
             os << " × I" << i;
 
-        os << " → " << ( type->getReturnType()->isVoidTy() ? "∅" : "O" );
+        os << " → " << ( output->isVoidTy() ? "∅" : "O" );
         os << "\n)\n";
         return os;
     }
 
-    inline auto &print_function_structure( auto &os, llvm::FunctionType *type )
+    inline auto &print_function_structure( auto &os,
+                                            llvm::ArrayRef< llvm::Type * > inputs,
+                                            llvm::Type *output )
     {
-        std::string name = function_type_name( type );
-        os << "structure " << name << " : " << function_signature_name( type )
+        std::string name = function_type_name( inputs, output );
+        os << "structure " << name << " : "
+           << function_signature_name( inputs.size(), !output->isVoidTy() )
            << "[ func, stck, bool";
 
-        for ( llvm::Type *parameter : type->params() )
+        for ( llvm::Type *parameter : inputs )
             os << ", " << cthu_type_name( parameter );
 
-        if ( !type->getReturnType()->isVoidTy() )
-            os << ", " << cthu_type_name( type->getReturnType() );
+        if ( !output->isVoidTy() )
+            os << ", " << cthu_type_name( output );
 
         os << " ]\n(\n"
            << "    join = builtin_func_join\n"
            << "    bot  = builtin_func_bot\n"
            << "    top  = builtin_func_top\n"
-           << "    opt  = builtin_func_opt\n\n"
+           << "    opt  = builtin_func_opt\n"
            << "    fork = builtin_func_fork\n"
            << "    move = builtin_func_move\n"
            << "    push = builtin_func_push\n"
-           << "    pop  = builtin_func_pop\n\n"
-           << "    drop = builtin_func_drop\n\n"
-           << "    dup  = builtin_func_dup\n\n"
+           << "    pop  = builtin_func_pop\n"
+           << "    drop = builtin_func_drop\n"
+           << "    dup  = builtin_func_dup\n"
            << "    call = builtin_func_call\n"
            << ")\n";
         return os;

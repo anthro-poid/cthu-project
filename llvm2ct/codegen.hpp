@@ -4,6 +4,7 @@
 #include "symtab.hpp"
 
 #include <llvm/ADT/DenseMap.h>
+#include <llvm/ADT/ArrayRef.h>
 #include <llvm/BinaryFormat/Dwarf.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Instructions.h>
@@ -39,15 +40,11 @@ namespace llvm2ct
          * to reuse a slot one of THIS SAME instruction's own operands just
          * freed. commit_frees() moves _pending_frees into _free_stacks and
          * must be called only once an instruction (inputs + output) is
-         * fully built — see binop_insn.
-         *
-         * Known gap: this only counts uses within the defining block. Once
-         * branches compile to calls between subroutines, a value passed to a
-         * successor as a call argument is a use too, and isn't counted here
-         * yet — needs revisiting before that lands, or a live value could
-         * have its slot reused before the outgoing call reads it. */
+         * fully built — see binop_insn. Values passed to successor blocks
+         * are included in _remaining_uses by visitBasicBlock. */
         llvm::DenseMap< llvm::Value *, uint16_t > _stack_of;
         llvm::DenseMap< llvm::Value *, unsigned > _remaining_uses;
+        llvm::DenseMap< llvm::BasicBlock *, std::vector< llvm::Value * > > _block_inputs;
         std::vector< uint16_t > _free_stacks;
         std::vector< uint16_t > _pending_frees;
         uint16_t _next_stack = 0;
@@ -74,6 +71,7 @@ namespace llvm2ct
          * no natural signedness context (e.g. visitStoreInst). */
         uint16_t use( llvm::Value *value, const std::string &struct_name = "i₃₂" );
         void drop_unused( llvm::Value *value );
+        void drop_remaining_values();
         void commit_frees();
 
         /* use() calls this the first time it sees a value with no producer
@@ -107,20 +105,24 @@ namespace llvm2ct
         /* "i₈"/"u₈"/"i₃₂"/"u₃₂" for the given signedness/width. */
         std::string struct_name( bool is_unsigned, unsigned width );
 
-        /* struct_name_for a value whose signedness isn't already certain
-         * from its own LLVM opcode: "u₃₂"/"u₈" if its debug type resolves
-         * to an unsigned DIBasicType, "i₃₂"/"i₈" otherwise (signed, or no
-         * debug info — add/sub/mul/etc. execute identically either way
-         * today, see builtin.py's bv_add and friends, but a future
-         * signedness-aware analysis would silently mis-tag an
-         * actually-unsigned value without this). For udiv/urem/lshr/icmp
-         * and friends, where the opcode itself already says signed or
-         * unsigned unambiguously, call struct_name() directly instead —
-         * going through debug info there could contradict the opcode
-         * (e.g. default to "signed" on missing debug info for a UDiv). */
+        /* struct_name_for returns "bool" for i1. For a value whose
+         * signedness isn't already certain from its own LLVM opcode, it
+         * returns "u₃₂"/"u₈" if its debug type resolves to an unsigned
+         * DIBasicType, "i₃₂"/"i₈" otherwise (signed, or no debug info —
+         * add/sub/mul/etc. execute identically either way today, see
+         * builtin.py's bv_add and friends, but a future signedness-aware
+         * analysis would silently mis-tag an actually-unsigned value
+         * without this). For udiv/urem/lshr/icmp and friends, where the
+         * opcode itself already says signed or unsigned unambiguously, call
+         * struct_name() directly instead — going through debug info there
+         * could contradict the opcode (e.g. default to "signed" on missing
+         * debug info for a UDiv). */
         std::string struct_name_for( llvm::Value *value );
 
         std::string function_structure_name( llvm::FunctionType *type );
+        std::string function_structure_name( llvm::ArrayRef< llvm::Value * > inputs,
+                                             llvm::Type *output );
+        void compute_block_inputs( llvm::Function &function );
 
         /* Takes the base Instruction, not BinaryOperator, so this covers
          * ICmpInst (2 operands in, 1 out, same as a binary op) too. */
@@ -139,7 +141,9 @@ namespace llvm2ct
         void visitBasicBlock( llvm::BasicBlock &block );
 
         void visitReturnInst( llvm::ReturnInst &instruction );
+        void visitBranchInst( llvm::BranchInst &instruction );
         void visitCallInst( llvm::CallInst &instruction );
+        void visitPHINode( llvm::PHINode &instruction );
         void visitICmpInst( llvm::ICmpInst &instruction );
         void visitTruncInst( llvm::TruncInst &instruction );
         void visitSExtInst( llvm::SExtInst &instruction );

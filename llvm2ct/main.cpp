@@ -41,16 +41,33 @@ int main( int argc, char *argv[] )
     std::set< std::string > emitted_signatures;
     std::set< std::string > emitted_structures;
 
+    auto emit_function_type = [ & ]( llvm::ArrayRef< llvm::Type * > inputs,
+                                               llvm::Type *output )
+    {
+        std::string signature_name = cthu::function_signature_name( inputs.size(), !output->isVoidTy() );
+        std::string structure_name = cthu::function_type_name( inputs, output );
+
+        if ( emitted_signatures.insert( signature_name ).second )
+            cthu::print_function_signature( prelude, inputs, output );
+
+        if ( emitted_structures.insert( structure_name ).second )
+            cthu::print_function_structure( builtins, inputs, output );
+    };
+
     for ( llvm::Function &function : *c._module )
         if ( !function.isDeclaration() )
         {
-            llvm::FunctionType *type = function.getFunctionType();
+            llvm::Type *output = function.getReturnType();
 
-            if ( emitted_signatures.insert( cthu::function_signature_name( type ) ).second )
-                cthu::print_function_signature( prelude, type );
+            for ( llvm::BasicBlock &block : function )
+            {
+                std::vector< llvm::Type * > inputs;
 
-            if ( emitted_structures.insert( cthu::function_type_name( type ) ).second )
-                cthu::print_function_structure( builtins, type );
+                for ( llvm::Value *value : c._block_inputs[ &block ] )
+                    inputs.push_back( value->getType() );
+
+                emit_function_type( inputs, output );
+            }
         }
 
     return 0;
