@@ -42,8 +42,11 @@ namespace cthu
         insn( const std::string &s_name, const std::string &b_name, builtin code ) :
             call( b_call{ s_name, b_name, code } ) {} 
 
-        void add_in(  uint16_t v ) { in.push_back(  v ); }
-        void add_out( uint16_t v ) { out.push_back( v ); }
+        template< typename... Stacks >
+        void add_in( Stacks... stacks ) { ( in.push_back( stacks ), ... ); }
+
+        template< typename... Stacks >
+        void add_out( Stacks... stacks ) { ( out.push_back( stacks ), ... ); }
 
         uint16_t &get_in(  size_t i ) { return in[  i ]; }
         uint16_t &get_out( size_t i ) { return out[ i ]; }
