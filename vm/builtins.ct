@@ -48,6 +48,8 @@ structure bool : logical[ bool, stck ]
 
     dup    = builtin_bool_dup    ; simple
 
+    true   = builtin_bool_true   ; logical
+    false  = builtin_bool_false  ; logical
     not    = builtin_bool_not    ; logical
     and    = builtin_bool_and    ; logical
     or     = builtin_bool_or     ; logical

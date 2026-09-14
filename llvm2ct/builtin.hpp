@@ -140,5 +140,7 @@ namespace cthu
         builtin_bool_ext8,
         builtin_bv32cutbool,
         builtin_bool_ext32,
+        builtin_bool_true,
+        builtin_bool_false,
     };
 }

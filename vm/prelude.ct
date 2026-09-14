@@ -35,11 +35,13 @@ signature simple[ T, S, B ] : affine[ T, S, B ]
 
 signature logical[ B, S ] : simple[ B, S, B ]
 (
-    not ∷ B     → B
-    and ∷ B × B → B
-    or  ∷ B × B → B
-    xor ∷ B × B → B
-    assert ∷ B  → ∅
+    true   ∷ ∅     → B
+    false  ∷ ∅     → B
+    not    ∷ B     → B
+    and    ∷ B × B → B
+    or     ∷ B × B → B
+    xor    ∷ B × B → B
+    assert ∷ B     → ∅
 )
 
 signature arithmetic[ T, B ]

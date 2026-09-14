@@ -205,6 +205,12 @@ def bool_ext( vm: 'Interpret', params: list[ int ], size: int ) -> None:
 
 ### Bool operations
 
+def bool_true( vm: 'Interpret', params: list[ int ] ) -> None:
+    vm.push( params[ 0 ], True )
+
+def bool_false( vm: 'Interpret', params: list[ int ] ) -> None:
+    vm.push( params[ 0 ], False )
+
 def bool_join( vm: 'Interpret', params: list[ int ] ) -> None:
     a = vm.pop( params[ 0 ] )
     b = vm.pop( params[ 1 ] )
@@ -520,7 +526,9 @@ name_to_code: dict[ str, int ] = {
     "builtin_bv8cutbool":   0xeff_0081,
     "builtin_bool_ext8":    0xeff_0082,
     "builtin_bv32cutbool":  0xeff_0083,
-    "builtin_bool_ext32":   0xeff_0084
+    "builtin_bool_ext32":   0xeff_0084,
+    "builtin_bool_true":    0xeff_0085,
+    "builtin_bool_false":   0xeff_0086
 }
 
 code_to_subr: dict[ int, Any ] = {
@@ -664,5 +672,8 @@ code_to_subr: dict[ int, Any ] = {
     0xeff_0081: lambda vm, p: bool_cut( vm, p, 8 ),
     0xeff_0082: lambda vm, p: bool_ext( vm, p, 8 ),
     0xeff_0083: lambda vm, p: bool_cut( vm, p, 32 ),
-    0xeff_0084: lambda vm, p: bool_ext( vm, p, 32 )
+    0xeff_0084: lambda vm, p: bool_ext( vm, p, 32 ),
+
+    0xeff_0085: bool_true,
+    0xeff_0086: bool_false
 }
