@@ -190,6 +190,16 @@ void codegen::append_nibble( uint16_t accumulator, uint16_t out, uint8_t value,
 
 void codegen::materialize_constant( uint16_t stack, llvm::ConstantInt &c, const std::string &struct_name )
 {
+    if ( c.getType()->isIntegerTy( 1 ) )
+    {
+        bool value = c.isOne();
+        cthu::insn cons{ "bool", value ? "true" : "false",
+                         value ? cthu::builtin::builtin_bool_true : cthu::builtin::builtin_bool_false };
+        cons.add_out( stack );
+        _current_subr->body.push_back( std::move( cons ) );
+        return;
+    }
+
     unsigned width = width_of( &c );
 
     uint64_t value = c.getZExtValue();
@@ -483,6 +493,63 @@ void codegen::visitCallInst( llvm::CallInst &instruction )
 void codegen::visitPHINode( llvm::PHINode & )
 {
     assert( false && "PHI nodes are not supported yet" );
+}
+
+void codegen::visitSelectInst( llvm::SelectInst &instruction )
+{
+    llvm::Type *type = instruction.getType();
+    assert( type->isIntegerTy() && "only integer select values are supported so far" );
+
+    unsigned width = llvm::cast< llvm::IntegerType >( type )->getBitWidth();
+    assert( ( width == 1 || width == 8 || width == 32 ) &&
+            "only bool/8/32-bit select values are supported so far" );
+
+    bool is_bool = width == 1;
+    bool w8 = width == 8;
+    std::string structure = is_bool ? "bool" : ( w8 ? "w₈" : "w₃₂" );
+    auto opt_code = is_bool ? cthu::builtin::builtin_bool_opt
+                            : ( w8 ? cthu::builtin::builtin_bv8opt
+                                   : cthu::builtin::builtin_bv32opt );
+    auto join_code = is_bool ? cthu::builtin::builtin_bool_join
+                             : ( w8 ? cthu::builtin::builtin_bv8join
+                                    : cthu::builtin::builtin_bv32join );
+
+    uint16_t condition = use( instruction.getCondition(), "bool" );
+    uint16_t when_true = use( instruction.getTrueValue(), struct_name_for( &instruction ) );
+    uint16_t when_false = use( instruction.getFalseValue(), struct_name_for( &instruction ) );
+
+    uint16_t true_condition = allocate_stack();
+    uint16_t condition_to_negate = allocate_stack();
+    cthu::insn duplicate{ "bool", "dup", cthu::builtin::builtin_bool_dup };
+    duplicate.add_in( condition );
+    duplicate.add_out( true_condition, condition_to_negate );
+    _current_subr->body.push_back( std::move( duplicate ) );
+
+    uint16_t false_condition = allocate_stack();
+    cthu::insn negate{ "bool", "not", cthu::builtin::builtin_bool_not };
+    negate.add_in( condition_to_negate );
+    negate.add_out( false_condition );
+    _current_subr->body.push_back( std::move( negate ) );
+
+    uint16_t true_result = allocate_stack();
+    cthu::insn choose_true{ structure, "opt", opt_code };
+    choose_true.add_in( true_condition, when_true );
+    choose_true.add_out( true_result );
+    _current_subr->body.push_back( std::move( choose_true ) );
+
+    uint16_t false_result = allocate_stack();
+    cthu::insn choose_false{ structure, "opt", opt_code };
+    choose_false.add_in( false_condition, when_false );
+    choose_false.add_out( false_result );
+    _current_subr->body.push_back( std::move( choose_false ) );
+
+    uint16_t out = define( &instruction );
+    cthu::insn join{ structure, "join", join_code };
+    join.add_in( true_result, false_result );
+    join.add_out( out );
+    _current_subr->body.push_back( std::move( join ) );
+
+    add_free_stacks( true_condition, condition_to_negate, false_condition, true_result, false_result );
 }
 
 void codegen::binop_insn( llvm::Instruction &instruction,

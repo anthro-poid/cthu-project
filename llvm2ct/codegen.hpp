@@ -147,6 +147,7 @@ namespace llvm2ct
         void visitBranchInst( llvm::BranchInst &instruction );
         void visitCallInst( llvm::CallInst &instruction );
         void visitPHINode( llvm::PHINode &instruction );
+        void visitSelectInst( llvm::SelectInst &instruction );
         void visitICmpInst( llvm::ICmpInst &instruction );
         void visitTruncInst( llvm::TruncInst &instruction );
         void visitSExtInst( llvm::SExtInst &instruction );
