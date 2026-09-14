@@ -49,6 +49,9 @@ namespace llvm2ct
         std::vector< uint16_t > _pending_frees;
         uint16_t _next_stack = 0;
 
+        template< typename... Stacks >
+        void add_free_stacks( Stacks... stacks ) { ( _free_stacks.push_back( stacks ), ... ); }
+
         /* The subr_t being filled in while visiting the current block's
          * instructions — set in visitBasicBlock, read by the instruction
          * visitors. A pointer, not a reference, since it's reseated once

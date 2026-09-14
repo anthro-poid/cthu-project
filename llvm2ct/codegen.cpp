@@ -175,8 +175,7 @@ void codegen::append_nibble( uint16_t accumulator, uint16_t out, uint8_t value,
     /* These stacks are safe to reuse after the completed shl. Do not
      * commit _pending_frees here: they may belong to operands of the
      * LLVM instruction for which this constant is being materialized. */
-    _free_stacks.push_back( accumulator );
-    _free_stacks.push_back( shift_stack );
+    add_free_stacks( accumulator, shift_stack );
 
     uint16_t digit_stack = allocate_stack();
     emit_nibble( digit_stack, value, struct_name, width );
@@ -186,8 +185,7 @@ void codegen::append_nibble( uint16_t accumulator, uint16_t out, uint8_t value,
     or_insn.add_out( out );
     _current_subr->body.push_back( std::move( or_insn ) );
 
-    _free_stacks.push_back( shifted );
-    _free_stacks.push_back( digit_stack );
+    add_free_stacks( shifted, digit_stack );
 }
 
 void codegen::materialize_constant( uint16_t stack, llvm::ConstantInt &c, const std::string &struct_name )
@@ -542,8 +540,7 @@ void codegen::bool_sext_insn( llvm::CastInst &instruction, unsigned width )
     negate.add_out( out );
     _current_subr->body.push_back( std::move( negate ) );
 
-    _free_stacks.push_back( zero );
-    _free_stacks.push_back( extended );
+    add_free_stacks( zero, extended );
 }
 
 void codegen::visitTruncInst( llvm::TruncInst &instruction )
