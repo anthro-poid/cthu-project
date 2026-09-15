@@ -20,37 +20,35 @@ namespace cthu
 {
     struct symtab
     {
-        std::map< llvm::Function *,   structure_t > structures;
-        std::map< llvm::BasicBlock *, subr_t      > subroutines;
-
-        uint64_t next_function_id = 0;
-        uint64_t next_block_id    = 0;
-
-        auto get( auto *elem, auto &to, auto pref, auto &counter )
-        {
-            auto [ it, inserted ] = to.try_emplace( elem );
-
-            if ( inserted )
-                it->second.name = elem->hasName() ? elem->getName().str()
-                                : pref + std::to_string( counter ++ );
-
-            return std::tuple{ it, inserted };
-        }
+        module_t module;
+        std::map< llvm::Function *,   structure_ptr > structures;
+        std::map< llvm::BasicBlock *, subr_ptr      > subroutines;
 
         structure_ref get_structure( llvm::Function *function )
         {
-            auto [ it, inserted ] = get( function, structures, "f", next_function_id );
-            return it->second;
+            if ( structures.contains( function ) )
+                return *structures[ function ];
+
+            structure_ptr structure = module.add_structure( function );
+            structures.try_emplace( function, structure );
+            return *structure;
         }
 
         subr_ref get_subroutine( llvm::BasicBlock *block )
         {
-            auto [ it, ins ] = get( block, subroutines, "b", next_block_id );
+            if ( subroutines.contains( block ) )
+                return *subroutines[ block ];
 
-            if ( ins )
-                get_structure( block->getParent() ).subroutines.push_back( &it->second );
+            structure_ref structure = get_structure( block->getParent() );
+            subr_ptr subroutine = structure.add_subroutine( block );
+            subroutines.try_emplace( block, subroutine );
+            return *subroutine;
+        }
 
-            return it->second;
+        subr_ref create_subroutine( llvm::Function *function )
+        {
+            auto &structure = get_structure( function );
+            return *structure.create_subroutine();
         }
     };
 }

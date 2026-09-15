@@ -34,7 +34,7 @@ int main( int argc, char *argv[] )
     std::ofstream out( "out.ct" );
 
     for ( auto &[ key, structure ] : c._symtab.structures )
-        out << structure;
+        out << *structure;
 
     std::ofstream prelude( "out.prelude.ct" );
     std::ofstream builtins( "out.builtins.ct" );

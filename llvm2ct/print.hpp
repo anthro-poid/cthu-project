@@ -54,8 +54,8 @@ namespace cthu
     {
         os << "structure " << s.name << "\n(";
 
-        for ( subr_ptr sub : s.subroutines )
-            os << "\n" << *sub;
+        for ( const subr_t &sub : s.subroutines )
+            os << "\n" << sub;
 
         os << ")\n";
 
