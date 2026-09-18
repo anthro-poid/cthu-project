@@ -66,6 +66,12 @@ namespace cthu
         std::vector< insn > body;
 
         subr_t( std::string n ) : name{ std::move( n ) } {}
+
+        template< typename... Stacks >
+        void add_in( Stacks... stacks ) { ( input.push_back( stacks ), ... ); }
+
+        template< typename... Stacks >
+        void add_out( Stacks... stacks ) { ( output.push_back( stacks ), ... ); }
     };
 
     struct structure_t

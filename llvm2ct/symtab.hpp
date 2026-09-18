@@ -4,12 +4,15 @@
 
 #include <llvm/IR/Function.h>
 
+#include <list>
 #include <map>
 #include <string>
 
 /* Each llvm::Function becomes one structure_t, and each of its BasicBlocks
  * becomes one subroutine (subr_t) registered in that structure — a
- * branch between blocks compiles to a call between subroutines.
+ * branch between blocks compiles to a call between subroutines. Conditional
+ * branches also need generated frame subroutines, kept in a list so pointers
+ * stored by structure_t remain valid as more frames are added.
  *
  * structure_t/subr_t carry a name purely for pretty-printing, taken from
  * the LLVM side when it has one; unnamed values (basic blocks routinely have

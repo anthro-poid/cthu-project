@@ -67,6 +67,17 @@ int main( int argc, char *argv[] )
                     inputs.push_back( value->getType() );
 
                 emit_function_type( inputs, output );
+
+                if ( auto *branch = llvm::dyn_cast< llvm::BranchInst >( block.getTerminator() ) )
+                    if ( branch->isConditional() )
+                    {
+                        inputs.clear();
+
+                        for ( llvm::Value *value : c._branch_inputs[ branch ] )
+                            inputs.push_back( value->getType() );
+
+                        emit_function_type( inputs, output );
+                    }
             }
         }
 
