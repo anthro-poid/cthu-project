@@ -349,12 +349,10 @@ def func_call( vm: 'Interpret', params: list[ int ] ) -> None:
     vm.executing = func
     vm.map       = _func_permute( vm.map, params[ 1 : ], func.input[ partial_size : ] + func.output )
 
-    if func.is_partialy_applied:
-        for arg, sid in zip( func.par_args, func.input ):
-            vm.push( sid, arg )
+    for arg, sid in zip( func.par_args, func.input ):
+        vm.push( sid, arg )
 
-        func.is_partialy_applied = False
-        func.par_args = []
+    func.par_args = []
 
     vm.run()
 
@@ -366,7 +364,6 @@ def func_join( vm: 'Interpret', params: list[ int ] ) -> None:
     frame = vm.pop( params[ 2 ] )
     assert isinstance( frame, Subr )
 
-    frame.is_partialy_applied = True
     frame.par_args = [ vm.pop( param ) for param in params[ : 2 ] ]
 
     vm.push( params[ -1 ], frame )

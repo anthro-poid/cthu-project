@@ -112,7 +112,6 @@ class Subr:
         self.output: list[ int ] = []
         self.instrs: list[ int ] = []
 
-        self.is_partialy_applied   = False
         self.par_args: list[ Any ] = []
 
         self.stack_types: dict[ int, BuiltinType ] = {}
