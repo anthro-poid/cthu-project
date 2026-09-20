@@ -258,9 +258,9 @@ static std::string function_type_name( llvm::Type *type )
     if ( type->isIntegerTy( 1 ) )
         return "b";
     if ( type->isIntegerTy( 8 ) )
-        return "w8";
+        return "w₈";
     if ( type->isIntegerTy( 32 ) )
-        return "w32";
+        return "w₃₂";
 
     assert( false && "only bool/8/32-bit function arguments are supported so far" );
     return {};
