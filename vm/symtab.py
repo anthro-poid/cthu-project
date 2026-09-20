@@ -57,30 +57,7 @@ class Bool( BuiltinType ):
 
 
 class Func( BuiltinType ):
-
-    class Bot:
-        def __init__( self, subr: 'Subr' ) -> None:
-            self.in_size = len( subr.input )
-            self.bots    = [ subr.stack_types[ sid ].get_bot() for sid in subr.output ]
-
-        def __call__( self, vm: Any, params: list[ int ] ) -> None:
-            for i in range( self.in_size ):
-                vm.pop( params[ i ] )
-
-            for sid, bot in zip( params[ self.in_size : ], self.bots ):
-                vm.push( sid, bot )
-
-    class Top:
-        def __init__( self, subr: 'Subr' ) -> None:
-            self.in_size = len( subr.input )
-            self.tops    = [ subr.stack_types[ sid ].get_top() for sid in subr.output ]
-
-        def __call__( self, vm: Any, params: list[ int ] ) -> None:
-            for i in range( self.in_size ):
-                vm.pop( params[ i ] )
-
-            for sid, top in zip( params[ self.in_size : ], self.tops ):
-                vm.push( sid, top )
+    pass
 
 
 class Stck( BuiltinType ):

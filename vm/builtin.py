@@ -327,9 +327,6 @@ def func_dup( vm: 'Interpret', params: list[ int ] ) -> None:
 
 def func_call( vm: 'Interpret', params: list[ int ] ) -> None:
     func = vm.pop( params[ 0 ] )
-    if isinstance( func, Func.Bot ) or isinstance( func, Func.Top ):
-        return func( vm, params[ 1 : ] )
-
     partial_size = len( func.par_args )
 
     stored_pc      = vm.pc
