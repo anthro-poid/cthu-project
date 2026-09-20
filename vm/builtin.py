@@ -305,7 +305,9 @@ def _func_permute( mapping: dict[ int, int ], actual: list[ int ],
     return result
 
 def func_fork( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
+    func = vm.pop( params[ 0 ] )
+    vm.push( params[ 1 ], func )
+    vm.push( params[ 2 ], func )
 
 def func_move( vm: 'Interpret', params: list[ int ] ) -> None:
     vm.push( params[ 1 ], vm.pop( params[ 0 ] ) )
@@ -321,9 +323,10 @@ def func_pop( vm: 'Interpret', params: list[ int ] ) -> None:
 def func_drop( vm: 'Interpret', params: list[ int ] ) -> None:
     vm.pop( params[ 0 ] )
 
-# TODO: Will be implemented in the future, but for now we will just assert False.
 def func_dup( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
+    func = vm.pop( params[ 0 ] )
+    vm.push( params[ 1 ], func )
+    vm.push( params[ 2 ], func )
 
 def func_call( vm: 'Interpret', params: list[ int ] ) -> None:
     func = vm.pop( params[ 0 ] )
