@@ -254,3 +254,123 @@ structure lambda : callable[ func, bool ]
     bind = builtin_lambda_bind
     select = builtin_lambda_select
 )
+
+structure f_f_f__f : f₂¹[ func, stck, bool, func, func, func ]
+(
+    fork = builtin_func_fork ; linear
+    move = builtin_func_move ; linear
+    push = builtin_func_push ; linear
+    pop  = builtin_func_pop  ; linear
+    drop = builtin_func_drop ; affine
+    dup  = builtin_func_dup  ; simple
+    call = builtin_func_call ; f₂¹
+
+    f_bot = λ a b → c
+    (
+        f_f_f__f drop a
+        f_f_f__f drop b
+        f_f_f__f bot -> c
+    )
+
+    f_top = λ a b → c
+    (
+        f_f_f__f drop a
+        f_f_f__f drop b
+        f_f_f__f top -> c
+    )
+
+    bot = λ ∅ → out
+    (
+        f_f_f__f f_bot -> out
+    )
+
+    top = λ ∅ → out
+    (
+        f_f_f__f f_top -> out
+    )
+
+    frame = λ A B a b → out
+    (
+        f_f_f__f fork a -> a₁ a₂
+        f_f_f__f fork b -> b₁ b₂
+
+        f_f_f__f call A a₁ b₁-> out₁
+        f_f_f__f call B a₂ b₂-> out₂
+
+        f_f_f__f join -> join
+        f_f_f__f call join out₁ out₂ -> out
+    )
+
+    join = λ a b → out
+    (
+        f_f_f__f frame -> frame
+        lambda bind frame a -> x
+        lambda bind x b -> out
+    )
+
+    opt = λ a b → out
+    (
+        f_f_f__f f_bot -> bot
+        lambda select a b bot -> out
+    )
+)
+
+structure f_b_f__f : f₂¹[ func, stck, bool, bool, func, func ]
+(
+    fork = builtin_func_fork ; linear
+    move = builtin_func_move ; linear
+    push = builtin_func_push ; linear
+    pop  = builtin_func_pop  ; linear
+    drop = builtin_func_drop ; affine
+    dup  = builtin_func_dup  ; simple
+    call = builtin_func_call ; f₂¹
+
+    f_bot = λ a b → c
+    (
+        bool drop a
+        f_b_f__f drop b
+        f_b_f__f bot -> c
+    )
+
+    f_top = λ a b → c
+    (
+        bool drop a
+        f_b_f__f drop b
+        f_b_f__f top -> c
+    )
+
+    bot = λ ∅ → out
+    (
+        f_b_f__f f_bot -> out
+    )
+
+    top = λ ∅ → out
+    (
+        f_b_f__f f_top -> out
+    )
+
+    frame = λ A B a b → out
+    (
+        bool fork a -> a₁ a₂
+        f_b_f__f fork b -> b₁ b₂
+
+        f_b_f__f call A a₁ b₁-> out₁
+        f_b_f__f call B a₂ b₂-> out₂
+
+        f_b_f__f join -> join
+        f_b_f__f call join out₁ out₂ -> out
+    )
+
+    join = λ a b → out
+    (
+        f_b_f__f frame -> frame
+        lambda bind frame a -> x
+        lambda bind x b -> out
+    )
+
+    opt = λ a b → out
+    (
+        f_b_f__f f_bot -> bot
+        lambda select a b bot -> out
+    )
+)

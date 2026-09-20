@@ -13,11 +13,6 @@ signature f₁¹[ F, S, B, I, O ] : simple[ F, S, B ]
     call ∷ F × I → O
 )
 
-signature f₂¹[ F, S, B, I0, I1, O ] : simple[ F, S, B ]
-(
-    call ∷ F × I0 × I1 → O
-)
-
 signature f₃¹[ F, S, B, I0, I1, I2, O ] : simple[ F, S, B ]
 (
     call ∷ F × I0 × I1 × I2 → O

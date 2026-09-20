@@ -107,3 +107,8 @@ signature callable[ F, B ]
     apply ∷ F × F → F
     select ∷ B × F × F → F
 )
+
+signature f₂¹[ F, S, B, I0, I1, O ] : simple[ F, S, B ]
+(
+    call ∷ F × I0 × I1 → O
+)
