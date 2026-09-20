@@ -25,12 +25,6 @@ subr_ptr structure_t::add_subroutine( llvm::BasicBlock *block )
     return &subroutines.back();
 }
 
-subr_ptr structure_t::create_subroutine()
-{
-    subroutines.emplace_back("__generated_subr" + std::to_string( next_subr_id ++ ) );
-    return &subroutines.back();
-}
-
 structure_ptr module_t::add_structure( llvm::Function *function )
 {
     structures.emplace_back( function->hasName() ? function->getName().str()

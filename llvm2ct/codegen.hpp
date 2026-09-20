@@ -45,10 +45,6 @@ namespace llvm2ct
         llvm::DenseMap< llvm::Value *, uint16_t > _stack_of;
         llvm::DenseMap< llvm::Value *, unsigned > _remaining_uses;
         llvm::DenseMap< llvm::BasicBlock *, std::vector< llvm::Value * > > _block_inputs;
-        /* A conditional continuation receives the stable union of both
-         * successors' live-ins; its generated frame routes each value to
-         * whichever successor actually needs it. */
-        llvm::DenseMap< llvm::BranchInst *, std::vector< llvm::Value * > > _branch_inputs;
         std::vector< uint16_t > _free_stacks;
         std::vector< uint16_t > _pending_frees;
         uint16_t _next_stack = 0;
@@ -130,10 +126,6 @@ namespace llvm2ct
         std::string function_structure_name( llvm::ArrayRef< llvm::Value * > inputs,
                                              llvm::Type *output );
         void compute_block_inputs( llvm::Function &function );
-        cthu::subr_ref create_branch_frame( llvm::Function *function,
-                                            llvm::ArrayRef< llvm::Value * > inputs,
-                                            llvm::ArrayRef< llvm::Value * > true_inputs,
-                                            llvm::ArrayRef< llvm::Value * > false_inputs );
 
         /* Takes the base Instruction, not BinaryOperator, so this covers
          * ICmpInst (2 operands in, 1 out, same as a binary op) too. */

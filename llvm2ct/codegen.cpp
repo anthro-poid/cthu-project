@@ -297,6 +297,34 @@ std::string codegen::function_structure_name( llvm::ArrayRef< llvm::Value * > in
     return name;
 }
 
+static bool unify_conditional_inputs( llvm::Function &function, auto &live_ins )
+{
+    bool changed = false;
+
+    for ( llvm::BasicBlock &block : function )
+    {
+        auto *branch = llvm::dyn_cast< llvm::BranchInst >( block.getTerminator() );
+        if ( branch == nullptr || branch->isUnconditional() )
+            continue;
+
+        auto &true_inputs = live_ins[ branch->getSuccessor( 0 ) ];
+        auto &false_inputs = live_ins[ branch->getSuccessor( 1 ) ];
+        std::vector< llvm::Value * > inputs( true_inputs.begin(), true_inputs.end() );
+
+        for ( llvm::Value *value : false_inputs )
+            if ( true_inputs.insert( value ).second )
+            {
+                inputs.push_back( value );
+                changed = true;
+            }
+
+        for ( llvm::Value *value : inputs )
+            changed |= false_inputs.insert( value ).second;
+    }
+
+    return changed;
+}
+
 void codegen::compute_block_inputs( llvm::Function &function )
 {
     llvm::DenseMap< llvm::BasicBlock *, llvm::DenseSet< llvm::Value * > > live_ins;
@@ -320,7 +348,7 @@ void codegen::compute_block_inputs( llvm::Function &function )
     bool changed;
     do
     {
-        changed = false;
+        changed = unify_conditional_inputs( function, live_ins );
 
         for ( llvm::BasicBlock &block : llvm::reverse( function ) )
             for ( llvm::BasicBlock *successor : llvm::successors( &block ) )
@@ -347,142 +375,6 @@ void codegen::compute_block_inputs( llvm::Function &function )
                 if ( live_ins[ &block ].contains( value ) )
                     inputs.push_back( value );
     }
-
-    for ( llvm::BasicBlock &block : function )
-    {
-        auto *branch = llvm::dyn_cast< llvm::BranchInst >( block.getTerminator() );
-        if ( branch == nullptr || branch->isUnconditional() )
-            continue;
-
-        auto &inputs = _branch_inputs[ branch ];
-        auto &true_inputs = _block_inputs[ branch->getSuccessor( 0 ) ];
-        auto &false_inputs = _block_inputs[ branch->getSuccessor( 1 ) ];
-
-        for ( llvm::Value *value : values )
-            if ( std::find( true_inputs.begin(),  true_inputs.end(),  value ) != true_inputs.end() ||
-                 std::find( false_inputs.begin(), false_inputs.end(), value ) != false_inputs.end() )
-                inputs.push_back( value );
-    }
-}
-
-static std::string simple_structure_name( llvm::Type *type )
-{
-    if ( type->isIntegerTy( 1 ) )
-        return "bool";
-    if ( type->isIntegerTy( 8 ) )
-        return "w₈";
-    if ( type->isIntegerTy( 32 ) )
-        return "w₃₂";
-
-    assert( "only bool/8/32-bit values are supported so far" );
-    std::abort();
-}
-
-static cthu::builtin dup_builtin( llvm::Type *type )
-{
-    if ( type->isIntegerTy( 1 ) )
-        return cthu::builtin::builtin_bool_dup;
-    if ( type->isIntegerTy( 8 ) )
-        return cthu::builtin::builtin_bv8dup;
-    if ( type->isIntegerTy( 32 ) )
-        return cthu::builtin::builtin_bv32dup;
-
-    assert( "only bool/8/32-bit values are supported so far" );
-    std::abort();
-}
-
-static cthu::builtin join_builtin( llvm::Type *type )
-{
-    if ( type->isIntegerTy( 1 ) )
-        return cthu::builtin::builtin_bool_join;
-    if ( type->isIntegerTy( 8 ) )
-        return cthu::builtin::builtin_bv8join;
-    if ( type->isIntegerTy( 32 ) )
-        return cthu::builtin::builtin_bv32join;
-
-    assert( "only bool/8/32-bit values are supported so far" );
-    std::abort();
-}
-
-cthu::subr_ref codegen::create_branch_frame( llvm::Function *function,
-                                             llvm::ArrayRef< llvm::Value * > inputs,
-                                             llvm::ArrayRef< llvm::Value * > true_inputs,
-                                             llvm::ArrayRef< llvm::Value * > false_inputs )
-{
-    cthu::subr_ref frame = _symtab.create_subroutine( function );
-    llvm::Type *return_type = function->getReturnType();
-    uint16_t next_stack = 0;
-    uint16_t true_function = next_stack ++;
-    uint16_t false_function = next_stack ++;
-    frame.add_in( true_function, false_function );
-
-    llvm::DenseMap< llvm::Value *, uint16_t > true_stacks;
-    llvm::DenseMap< llvm::Value *, uint16_t > false_stacks;
-
-    for ( llvm::Value *value : inputs )
-    {
-        uint16_t input = next_stack ++;
-        frame.input.push_back( input );
-        bool used_by_true = std::find( true_inputs.begin(), true_inputs.end(), value )
-                            != true_inputs.end();
-        bool used_by_false = std::find( false_inputs.begin(), false_inputs.end(), value )
-                             != false_inputs.end();
-
-        if ( used_by_true && used_by_false )
-        {
-            uint16_t true_input = next_stack ++;
-            uint16_t false_input = next_stack ++;
-            cthu::insn duplicate{ simple_structure_name( value->getType() ), "dup",
-                                  dup_builtin( value->getType() ) };
-            duplicate.add_in( input );
-            duplicate.add_out( true_input, false_input );
-            frame.body.push_back( std::move( duplicate ) );
-            true_stacks[ value ] = true_input;
-            false_stacks[ value ] = false_input;
-        }
-        else if ( used_by_true )
-            true_stacks[ value ] = input;
-        else
-        {
-            assert( used_by_false && "branch input is unused by both successors" );
-            false_stacks[ value ] = input;
-        }
-    }
-
-    cthu::insn call_true{ function_structure_name( true_inputs, return_type ), "call",
-                          cthu::builtin::builtin_func_call };
-    call_true.add_in( true_function );
-    for ( llvm::Value *value : true_inputs )
-        call_true.add_in( true_stacks.lookup( value ) );
-
-    cthu::insn call_false{ function_structure_name( false_inputs, return_type ), "call",
-                           cthu::builtin::builtin_func_call };
-    call_false.add_in( false_function );
-    for ( llvm::Value *value : false_inputs )
-        call_false.add_in( false_stacks.lookup( value ) );
-
-    if ( return_type->isVoidTy() )
-    {
-        frame.body.push_back( std::move( call_true ) );
-        frame.body.push_back( std::move( call_false ) );
-        return frame;
-    }
-
-    uint16_t true_result = next_stack ++;
-    uint16_t false_result = next_stack ++;
-    uint16_t output = next_stack ++;
-    call_true.add_out( true_result );
-    call_false.add_out( false_result );
-    frame.body.push_back( std::move( call_true ) );
-    frame.body.push_back( std::move( call_false ) );
-
-    cthu::insn join{ simple_structure_name( return_type ), "join",
-                     join_builtin( return_type ) };
-    join.add_in( true_result, false_result );
-    join.add_out( output );
-    frame.body.push_back( std::move( join ) );
-    frame.output.push_back( output );
-    return frame;
 }
 
 void codegen::commit_frees()
@@ -537,9 +429,7 @@ void codegen::visitBasicBlock( llvm::BasicBlock &block )
 
     if ( auto *branch = llvm::dyn_cast< llvm::BranchInst >( block.getTerminator() ) )
     {
-        auto &successor_inputs = branch->isConditional()
-                               ? _branch_inputs[ branch ]
-                               : _block_inputs[ branch->getSuccessor( 0 ) ];
+        auto &successor_inputs = _block_inputs[ branch->getSuccessor( 0 ) ];
 
         for ( llvm::Value *value : successor_inputs )
             ++ _remaining_uses[ value ];
@@ -583,8 +473,9 @@ void codegen::visitBranchInst( llvm::BranchInst &instruction )
     if ( instruction.isConditional() )
     {
         llvm::BasicBlock *false_target = instruction.getSuccessor( 1 );
-        auto &false_inputs = _block_inputs[ false_target ];
-        auto &branch_inputs = _branch_inputs[ &instruction ];
+        auto &branch_inputs = target_inputs;
+        llvm::Type *return_type = instruction.getFunction()->getReturnType();
+        std::string function_structure = function_structure_name( branch_inputs, return_type );
 
         uint16_t condition = use( instruction.getCondition(), "bool" );
         uint16_t true_condition = allocate_stack();
@@ -611,54 +502,43 @@ void codegen::visitBranchInst( llvm::BranchInst &instruction )
         false_value.add_out( false_function );
         _current_subr->body.push_back( std::move( false_value ) );
 
-        llvm::Type *return_type = instruction.getFunction()->getReturnType();
-        std::string true_structure = function_structure_name( target_inputs, return_type );
-        std::string false_structure = function_structure_name( false_inputs, return_type );
-
-        uint16_t true_bottom = allocate_stack();
-        cthu::insn true_bottom_value{ true_structure, "f_bot",
-                                      cthu::builtin::builtin_func_call };
-        true_bottom_value.add_out( true_bottom );
-        _current_subr->body.push_back( std::move( true_bottom_value ) );
+        uint16_t true_opt = allocate_stack();
+        cthu::insn true_opt_value{ function_structure, "opt",
+                                   cthu::builtin::builtin_func_call };
+        true_opt_value.add_out( true_opt );
+        _current_subr->body.push_back( std::move( true_opt_value ) );
 
         uint16_t true_alternative = allocate_stack();
-        cthu::insn choose_true{ "lambda", "select", cthu::builtin::builtin_lambda_select };
-        choose_true.add_in( true_condition, true_function, true_bottom );
+        cthu::insn choose_true{ "f_b_f__f", "call", cthu::builtin::builtin_func_call };
+        choose_true.add_in( true_opt, true_condition, true_function );
         choose_true.add_out( true_alternative );
         _current_subr->body.push_back( std::move( choose_true ) );
 
-        uint16_t false_bottom = allocate_stack();
-        cthu::insn false_bottom_value{ false_structure, "f_bot",
-                                       cthu::builtin::builtin_func_call };
-        false_bottom_value.add_out( false_bottom );
-        _current_subr->body.push_back( std::move( false_bottom_value ) );
+        uint16_t false_opt = allocate_stack();
+        cthu::insn false_opt_value{ function_structure, "opt",
+                                    cthu::builtin::builtin_func_call };
+        false_opt_value.add_out( false_opt );
+        _current_subr->body.push_back( std::move( false_opt_value ) );
 
         uint16_t false_alternative = allocate_stack();
-        cthu::insn choose_false{ "lambda", "select", cthu::builtin::builtin_lambda_select };
-        choose_false.add_in( false_condition, false_function, false_bottom );
+        cthu::insn choose_false{ "f_b_f__f", "call", cthu::builtin::builtin_func_call };
+        choose_false.add_in( false_opt, false_condition, false_function );
         choose_false.add_out( false_alternative );
         _current_subr->body.push_back( std::move( choose_false ) );
 
-        uint16_t frame_stack = allocate_stack();
-        cthu::insn frame_value{ structure,
-                                create_branch_frame( instruction.getFunction(), branch_inputs,
-                                                     target_inputs, false_inputs ) };
-        frame_value.add_out( frame_stack );
-        _current_subr->body.push_back( std::move( frame_value ) );
-
-        uint16_t partial_frame = allocate_stack();
-        cthu::insn bind_true{ "lambda", "bind", cthu::builtin::builtin_lambda_bind };
-        bind_true.add_in( frame_stack, true_alternative );
-        bind_true.add_out( partial_frame );
-        _current_subr->body.push_back( std::move( bind_true ) );
+        uint16_t join = allocate_stack();
+        cthu::insn join_value{ function_structure, "join",
+                               cthu::builtin::builtin_func_call };
+        join_value.add_out( join );
+        _current_subr->body.push_back( std::move( join_value ) );
 
         uint16_t continuation = allocate_stack();
-        cthu::insn bind_false{ "lambda", "bind", cthu::builtin::builtin_lambda_bind };
-        bind_false.add_in( partial_frame, false_alternative );
-        bind_false.add_out( continuation );
-        _current_subr->body.push_back( std::move( bind_false ) );
+        cthu::insn join_alternatives{ "f_f_f__f", "call",
+                                      cthu::builtin::builtin_func_call };
+        join_alternatives.add_in( join, true_alternative, false_alternative );
+        join_alternatives.add_out( continuation );
+        _current_subr->body.push_back( std::move( join_alternatives ) );
 
-        std::string function_structure = function_structure_name( branch_inputs, return_type );
         cthu::insn call{ function_structure, "call", cthu::builtin::builtin_func_call };
         call.add_in( continuation );
         for ( llvm::Value *value : branch_inputs )
