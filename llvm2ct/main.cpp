@@ -10,27 +10,8 @@
 #include <fstream>
 #include <set>
 
-int main( int argc, char *argv[] )
+void print_functions_sigs_and_structs( auto &c )
 {
-    if ( argc != 2 )
-    {
-        llvm::errs() << "usage: <file.ll>\n";
-        return -1;
-    }
-
-    llvm::SMDiagnostic error;
-    llvm::LLVMContext context;
-    auto module = llvm::parseIRFile( argv[ 1 ], error, context );
-
-    if ( !module )
-    {
-        llvm::errs() << error.getMessage();
-        return -1;
-    }
-
-    llvm2ct::codegen c{ context, std::move( module ) };
-    c.visit( *c._module );
-
     std::ofstream out( "out.ct" );
 
     for ( auto &[ key, structure ] : c._symtab.structures )
@@ -80,6 +61,29 @@ int main( int argc, char *argv[] )
                     }
             }
         }
+}
 
+int main( int argc, char *argv[] )
+{
+    if ( argc != 2 )
+    {
+        llvm::errs() << "usage: <file.ll>\n";
+        return -1;
+    }
+
+    llvm::SMDiagnostic error;
+    llvm::LLVMContext context;
+    auto module = llvm::parseIRFile( argv[ 1 ], error, context );
+
+    if ( !module )
+    {
+        llvm::errs() << error.getMessage();
+        return -1;
+    }
+
+    llvm2ct::codegen c{ context, std::move( module ) };
+    c.visit( *c._module );
+
+    print_functions_sigs_and_structs( c );
     return 0;
 }
