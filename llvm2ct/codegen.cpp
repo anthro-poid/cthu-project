@@ -612,16 +612,30 @@ void codegen::visitBranchInst( llvm::BranchInst &instruction )
         _current_subr->body.push_back( std::move( false_value ) );
 
         llvm::Type *return_type = instruction.getFunction()->getReturnType();
-        std::string function_structure = function_structure_name( branch_inputs, return_type );
+        std::string true_structure = function_structure_name( target_inputs, return_type );
+        std::string false_structure = function_structure_name( false_inputs, return_type );
+
+        uint16_t true_bottom = allocate_stack();
+        cthu::insn true_bottom_value{ true_structure, "f_bot",
+                                      cthu::builtin::builtin_func_call };
+        true_bottom_value.add_out( true_bottom );
+        _current_subr->body.push_back( std::move( true_bottom_value ) );
+
         uint16_t true_alternative = allocate_stack();
-        cthu::insn choose_true{ function_structure, "opt", cthu::builtin::builtin_func_opt };
-        choose_true.add_in( true_condition, true_function );
+        cthu::insn choose_true{ "lambda", "select", cthu::builtin::builtin_lambda_select };
+        choose_true.add_in( true_condition, true_function, true_bottom );
         choose_true.add_out( true_alternative );
         _current_subr->body.push_back( std::move( choose_true ) );
 
+        uint16_t false_bottom = allocate_stack();
+        cthu::insn false_bottom_value{ false_structure, "f_bot",
+                                       cthu::builtin::builtin_func_call };
+        false_bottom_value.add_out( false_bottom );
+        _current_subr->body.push_back( std::move( false_bottom_value ) );
+
         uint16_t false_alternative = allocate_stack();
-        cthu::insn choose_false{ function_structure, "opt", cthu::builtin::builtin_func_opt };
-        choose_false.add_in( false_condition, false_function );
+        cthu::insn choose_false{ "lambda", "select", cthu::builtin::builtin_lambda_select };
+        choose_false.add_in( false_condition, false_function, false_bottom );
         choose_false.add_out( false_alternative );
         _current_subr->body.push_back( std::move( choose_false ) );
 
@@ -632,12 +646,19 @@ void codegen::visitBranchInst( llvm::BranchInst &instruction )
         frame_value.add_out( frame_stack );
         _current_subr->body.push_back( std::move( frame_value ) );
 
-        uint16_t continuation = allocate_stack();
-        cthu::insn join{ function_structure, "join", cthu::builtin::builtin_func_join };
-        join.add_in( true_alternative, false_alternative, frame_stack );
-        join.add_out( continuation );
-        _current_subr->body.push_back( std::move( join ) );
+        uint16_t partial_frame = allocate_stack();
+        cthu::insn bind_true{ "lambda", "bind", cthu::builtin::builtin_lambda_bind };
+        bind_true.add_in( frame_stack, true_alternative );
+        bind_true.add_out( partial_frame );
+        _current_subr->body.push_back( std::move( bind_true ) );
 
+        uint16_t continuation = allocate_stack();
+        cthu::insn bind_false{ "lambda", "bind", cthu::builtin::builtin_lambda_bind };
+        bind_false.add_in( partial_frame, false_alternative );
+        bind_false.add_out( continuation );
+        _current_subr->body.push_back( std::move( bind_false ) );
+
+        std::string function_structure = function_structure_name( branch_inputs, return_type );
         cthu::insn call{ function_structure, "call", cthu::builtin::builtin_func_call };
         call.add_in( continuation );
         for ( llvm::Value *value : branch_inputs )
