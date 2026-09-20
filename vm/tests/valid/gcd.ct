@@ -15,17 +15,6 @@ structure gcd
         w₃₂ move a → out
     )
 
-    frame = λ A B a b → out
-    (
-        w₃₂ dup a → a1 a2
-        w₃₂ dup b → b1 b2
-
-        fᵢᵢⁱ call A a1 b1 → out1
-        fᵢᵢⁱ call B a2 b2 → out2
-
-        w₃₂ join out1 out2 → out
-    )
-
     loop = λ a b → out
     (
         i₃₂ cons_0      → zero
@@ -37,12 +26,13 @@ structure gcd
 
         gcd base  → base
         gcd rec   → rec
-        gcd frame → frame
+        fᵢᵢⁱ opt → opt1
+        f_b_f__f call opt1 cmp1 base → alt1
+        fᵢᵢⁱ opt → opt2
+        f_b_f__f call opt2 cmp3 rec → alt2
 
-        fᵢᵢⁱ opt cmp1 base → alt1
-        fᵢᵢⁱ opt cmp3 rec  → alt2
-
-        fᵢᵢⁱ join alt1 alt2 frame → cont
+        fᵢᵢⁱ join → join
+        f_f_f__f call join alt1 alt2 → cont
         fᵢᵢⁱ call cont a b2       → out
     )
 

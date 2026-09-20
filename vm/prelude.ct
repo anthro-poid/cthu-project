@@ -101,3 +101,9 @@ signature map[ K, V, M ]
     take ∷ K × M → V × M
     put  ∷ K × V × M → M
 )
+
+signature callable[ F, B ]
+(
+    apply ∷ F × F → F
+    select ∷ B × F × F → F
+)

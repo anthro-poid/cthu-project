@@ -18,17 +18,6 @@ structure fact
         w₃₂ move a → out
     )
 
-    frame = λ A B a i → out
-    (
-        w₃₂ fork a → a₁ a₂
-        w₃₂ fork i → i₁ i₂
-
-        fᵢᵢⁱ call A a₁ i₁ → out₁
-        fᵢᵢⁱ call B a₂ i₂ → out₂
-
-        w₃₂ join out₁ out₂ → out
-    )
-
     loop = λ a i → out
     (
         i₃₂ cons_0      → zero
@@ -40,12 +29,14 @@ structure fact
 
         fact base  → base
         fact rec   → rec
-        fact frame → frame
 
-        fᵢᵢⁱ opt cmp₁ base → alt₁
-        fᵢᵢⁱ opt cmp₃ rec  → alt₂
+        fᵢᵢⁱ opt → opt₁
+        f_b_f__f call opt₁ cmp₁ base → alt₁
+        fᵢᵢⁱ opt → opt₂
+        f_b_f__f call opt₂ cmp₃ rec → alt₂
 
-        fᵢᵢⁱ join alt₁ alt₂ frame → cont
+        fᵢᵢⁱ join → join
+        f_f_f__f call join alt₁ alt₂ → cont
         fᵢᵢⁱ call cont a i₂     → out
     )
 

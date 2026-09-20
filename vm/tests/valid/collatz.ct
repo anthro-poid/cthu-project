@@ -28,16 +28,6 @@ structure collatz
         i₃₂ add steps one2 → out
     )
 
-    parity_frame = λ A B n → out
-    (
-        w₃₂ dup n → n1 n2
-
-        fᵢⁱ call A n1 → out1
-        fᵢⁱ call B n2 → out2
-
-        w₃₂ join out1 out2 → out
-    )
-
     recurse = λ n → out
     (
         i₃₂  cons_2     → two
@@ -52,11 +42,13 @@ structure collatz
         collatz even_step → ev
         collatz odd_step  → od
 
-        fᵢⁱ opt e1     ev → alt1
-        fᵢⁱ opt is_odd od → alt2
+        fᵢⁱ opt → opt1
+        f_b_f__f call opt1 e1 ev → alt1
+        fᵢⁱ opt → opt2
+        f_b_f__f call opt2 is_odd od → alt2
 
-        collatz parity_frame        → pframe
-        fᵢⁱ join alt1 alt2 pframe → cont2
+        fᵢⁱ join → join
+        f_f_f__f call join alt1 alt2 → cont2
         fᵢⁱ call cont2 n2         → out
     )
 
@@ -66,16 +58,6 @@ structure collatz
     (
         w₃₂ drop n
         i₃₂ cons_0 → out
-    )
-
-    frame = λ A B n → out
-    (
-        w₃₂ dup n → n1 n2
-
-        fᵢⁱ call A n1 → out1
-        fᵢⁱ call B n2 → out2
-
-        w₃₂ join out1 out2 → out
     )
 
     loop = λ n → out
@@ -90,11 +72,13 @@ structure collatz
         collatz base    → base_f
         collatz recurse → rec_f
 
-        fᵢⁱ opt b1       base_f → alt1
-        fᵢⁱ opt not_base rec_f  → alt2
+        fᵢⁱ opt → opt1
+        f_b_f__f call opt1 b1 base_f → alt1
+        fᵢⁱ opt → opt2
+        f_b_f__f call opt2 not_base rec_f → alt2
 
-        collatz frame              → outer_frame
-        fᵢⁱ join alt1 alt2 outer_frame → cont
+        fᵢⁱ join → join
+        f_f_f__f call join alt1 alt2 → cont
         fᵢⁱ call cont n2               → out
     )
 )

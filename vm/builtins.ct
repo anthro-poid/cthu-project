@@ -248,3 +248,9 @@ structure b³² : convert[ bool, w₃₂ ]
     cut = builtin_bv32cutbool
     ext = builtin_bool_ext32
 )
+
+structure lambda : callable[ func, bool ]
+(
+    bind = builtin_lambda_bind
+    select = builtin_lambda_select
+)

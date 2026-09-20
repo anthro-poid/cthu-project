@@ -304,15 +304,6 @@ def _func_permute( mapping: dict[ int, int ], actual: list[ int ],
 
     return result
 
-# TODO: Will be implemented in the future, but for now we will just assert False.
-def func_bot( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
-
-# TODO: Will be implemented in the future, but for now we will just assert False.
-def func_top( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
-
-# TODO: Will be implemented in the future, but for now we will just assert False.
 def func_fork( vm: 'Interpret', params: list[ int ] ) -> None:
     assert False
 
@@ -360,20 +351,18 @@ def func_call( vm: 'Interpret', params: list[ int ] ) -> None:
     vm.executing = stored_exec
     vm.map       = stored_mapping
 
-def func_join( vm: 'Interpret', params: list[ int ] ) -> None:
-    frame = vm.pop( params[ 2 ] )
-    assert isinstance( frame, Subr )
+### Lambda operations
 
-    frame.par_args = [ vm.pop( param ) for param in params[ : 2 ] ]
+def lambda_bind( vm: 'Interpret', params: list[ int ] ) -> None:
+    func = vm.pop( params[ 0 ] )
+    func.par_args.append( vm.pop( params[ 1 ] ) )
+    vm.push( params[ 2 ], func )
 
-    vm.push( params[ -1 ], frame )
-
-def func_opt( vm: 'Interpret', params: list[ int ] ) -> None:
+def lambda_select( vm: 'Interpret', params: list[ int ] ) -> None:
     cmp_val = vm.pop( params[ 0 ] )
-    arg = vm.pop( params[ 1 ] )
-    assert isinstance( cmp_val, bool )
-
-    vm.push( params[ 2 ], arg if cmp_val else Func.Bot( arg ) )
+    func = vm.pop( params[ 1 ] )
+    bot = vm.pop( params[ 2 ] )
+    vm.push( params[ 3 ], func if cmp_val else bot )
 
 ### Entry point
 
@@ -515,17 +504,16 @@ name_to_code: dict[ str, int ] = {
     "builtin_func_push":    0xeff_007a,
     "builtin_func_move":    0xeff_007b,
     "builtin_func_fork":    0xeff_007c,
-    "builtin_func_opt":     0xeff_007d,
-    "builtin_func_top":     0xeff_007e,
-    "builtin_func_bot":     0xeff_007f,
-    "builtin_func_join":    0xeff_0080,
 
-    "builtin_bv8cutbool":   0xeff_0081,
-    "builtin_bool_ext8":    0xeff_0082,
-    "builtin_bv32cutbool":  0xeff_0083,
-    "builtin_bool_ext32":   0xeff_0084,
-    "builtin_bool_true":    0xeff_0085,
-    "builtin_bool_false":   0xeff_0086
+    "builtin_bv8cutbool":   0xeff_007d,
+    "builtin_bool_ext8":    0xeff_007e,
+    "builtin_bv32cutbool":  0xeff_007f,
+    "builtin_bool_ext32":   0xeff_0080,
+    "builtin_bool_true":    0xeff_0081,
+    "builtin_bool_false":   0xeff_0082,
+
+    "builtin_lambda_bind":   0xeff_0083,
+    "builtin_lambda_select": 0xeff_0084
 }
 
 code_to_subr: dict[ int, Any ] = {
@@ -661,16 +649,15 @@ code_to_subr: dict[ int, Any ] = {
     0xeff_007a: func_push,
     0xeff_007b: func_move,
     0xeff_007c: func_fork,
-    0xeff_007d: func_opt,
-    0xeff_007e: func_top,
-    0xeff_007f: func_bot,
-    0xeff_0080: func_join,
 
-    0xeff_0081: lambda vm, p: bool_cut( vm, p, 8 ),
-    0xeff_0082: lambda vm, p: bool_ext( vm, p, 8 ),
-    0xeff_0083: lambda vm, p: bool_cut( vm, p, 32 ),
-    0xeff_0084: lambda vm, p: bool_ext( vm, p, 32 ),
+    0xeff_007d: lambda vm, p: bool_cut( vm, p, 8 ),
+    0xeff_007e: lambda vm, p: bool_ext( vm, p, 8 ),
+    0xeff_007f: lambda vm, p: bool_cut( vm, p, 32 ),
+    0xeff_0080: lambda vm, p: bool_ext( vm, p, 32 ),
 
-    0xeff_0085: bool_true,
-    0xeff_0086: bool_false
+    0xeff_0081: bool_true,
+    0xeff_0082: bool_false,
+
+    0xeff_0083: lambda_bind,
+    0xeff_0084: lambda_select
 }

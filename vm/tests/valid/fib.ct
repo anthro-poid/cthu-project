@@ -19,18 +19,6 @@ structure fib
         w₃₂ move b → out
     )
 
-    frame = λ A B a b i → out
-    (
-        w₃₂ fork a → a₁ a₂
-        w₃₂ fork b → b₁ b₂
-        w₃₂ fork i → i₁ i₂
-
-        fᵢᵢᵢⁱ call A a₁ b₁ i₁ → out₁
-        fᵢᵢᵢⁱ call B a₂ b₂ i₂ → out₂
-
-        w₃₂ join out₁ out₂ → out
-    )
-
     loop = λ a b i → out
     (
         i₃₂ cons_0      → zero
@@ -42,12 +30,14 @@ structure fib
 
         fib base  → base
         fib rec   → rec
-        fib frame → frame
 
-        fᵢᵢᵢⁱ opt cmp₁ base → alt₁
-        fᵢᵢᵢⁱ opt cmp₃ rec  → alt₂
+        fᵢᵢᵢⁱ opt → opt₁
+        f_b_f__f call opt₁ cmp₁ base → alt₁
+        fᵢᵢᵢⁱ opt → opt₂
+        f_b_f__f call opt₂ cmp₃ rec → alt₂
 
-        fᵢᵢᵢⁱ join alt₁ alt₂ frame → cont
+        fᵢᵢᵢⁱ join → join
+        f_f_f__f call join alt₁ alt₂ → cont
         fᵢᵢᵢⁱ call cont a b i₂     → out
     )
 
