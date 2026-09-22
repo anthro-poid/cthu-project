@@ -10,23 +10,23 @@
 #include <fstream>
 #include <set>
 
-void print_functions_sigs_and_structs( auto &c )
+void print_files( auto &c )
 {
     std::ofstream out( "out.ct" );
 
     for ( auto &[ key, structure ] : c._symtab.structures )
         out << *structure;
 
-    std::ofstream prelude( "out.prelude.ct" );
-    std::ofstream builtins( "out.builtins.ct" );
+    std::ofstream prelude( "out.signatures.ct" );
+    std::ofstream builtins( "out.structures.ct" );
     std::set< std::string > emitted_signatures;
     std::set< std::string > emitted_structures;
 
     auto emit_function_type = [ & ]( llvm::ArrayRef< llvm::Type * > inputs,
                                                llvm::Type *output )
     {
-        std::string signature_name = cthu::function_signature_name( inputs.size(), !output->isVoidTy() );
-        std::string structure_name = cthu::function_type_name( inputs, output );
+        std::string signature_name = llvm2ct::function_signature_name( inputs.size(), !output->isVoidTy() );
+        std::string structure_name = llvm2ct::function_structure_name( inputs, output );
 
         if ( emitted_signatures.insert( signature_name ).second )
             cthu::print_function_signature( prelude, inputs, output );
@@ -36,20 +36,22 @@ void print_functions_sigs_and_structs( auto &c )
     };
 
     for ( llvm::Function &function : *c._module )
-        if ( !function.isDeclaration() )
+    {
+        if ( function.isDeclaration() )
+            continue;
+
+        llvm::Type *output = function.getReturnType();
+
+        for ( llvm::BasicBlock &block : function )
         {
-            llvm::Type *output = function.getReturnType();
+            std::vector< llvm::Type * > inputs;
 
-            for ( llvm::BasicBlock &block : function )
-            {
-                std::vector< llvm::Type * > inputs;
+            for ( llvm::Value *value : c._block_inputs[ &block ] )
+                inputs.push_back( value->getType() );
 
-                for ( llvm::Value *value : c._block_inputs[ &block ] )
-                    inputs.push_back( value->getType() );
-
-                emit_function_type( inputs, output );
-            }
+            emit_function_type( inputs, output );
         }
+    }
 }
 
 int main( int argc, char *argv[] )
@@ -73,6 +75,6 @@ int main( int argc, char *argv[] )
     llvm2ct::codegen c{ context, std::move( module ) };
     c.visit( *c._module );
 
-    print_functions_sigs_and_structs( c );
+    print_files( c );
     return 0;
 }

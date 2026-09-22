@@ -1,144 +1,123 @@
 #pragma once
 
-#include <cassert>
+#include <boost/preprocessor.hpp>
+
 #include <cstdint>
+#include <string_view>
 
 namespace cthu
 {
-    enum struct builtin : uint32_t
+#define CTHU_BUILTIN_STRUCTURES \
+    ( ( w8,       "w₈"       ) ) \
+    ( ( w32,      "w₃₂"      ) ) \
+    ( ( i8,       "i₈"       ) ) \
+    ( ( u8,       "u₈"       ) ) \
+    ( ( i32,      "i₃₂"      ) ) \
+    ( ( u32,      "u₃₂"      ) ) \
+    ( ( boolean,  "bool"      ) ) \
+    ( ( i8_32,    "i₈³²"     ) ) \
+    ( ( u8_32,    "u₈³²"     ) ) \
+    ( ( bool_8,   "b⁸"        ) ) \
+    ( ( bool_32,  "b³²"       ) ) \
+    ( ( function, "function"  ) ) \
+    ( ( lambda,   "lambda"    ) )
+
+#define CTHU_BUILTIN_OPERATIONS \
+    ( ( join,          "join"    ) ) \
+    ( ( bot,           "bot"     ) ) \
+    ( ( top,           "top"     ) ) \
+    ( ( opt,           "opt"     ) ) \
+    ( ( fork,          "fork"    ) ) \
+    ( ( move,          "move"    ) ) \
+    ( ( push,          "push"    ) ) \
+    ( ( pop,           "pop"     ) ) \
+    ( ( drop,          "drop"    ) ) \
+    ( ( dup,           "dup"     ) ) \
+    ( ( logical_not,   "not"     ) ) \
+    ( ( true_value,    "true"    ) ) \
+    ( ( false_value,   "false"   ) ) \
+    ( ( add,           "add"     ) ) \
+    ( ( sub,           "sub"     ) ) \
+    ( ( mul,           "mul"     ) ) \
+    ( ( div,           "div"     ) ) \
+    ( ( rem,           "rem"     ) ) \
+    ( ( shl,           "shl"     ) ) \
+    ( ( shr,           "shr"     ) ) \
+    ( ( bit_and,       "and"     ) ) \
+    ( ( bit_or,        "or"      ) ) \
+    ( ( bit_xor,       "xor"     ) ) \
+    ( ( bssert,        "assert"  ) ) \
+    ( ( equal,         "eq?"     ) ) \
+    ( ( not_equal,     "ne?"     ) ) \
+    ( ( less,          "lt?"     ) ) \
+    ( ( less_equal,    "le?"     ) ) \
+    ( ( greater_equal, "ge?"     ) ) \
+    ( ( greater,       "gt?"     ) ) \
+    ( ( cut,           "cut"     ) ) \
+    ( ( ext,           "ext"     ) ) \
+    ( ( call,          "call"    ) ) \
+    ( ( bind,          "bind"    ) ) \
+    ( ( select,        "select"  ) ) \
+    ( ( cons_0,        "cons_0"  ) ) \
+    ( ( cons_1,        "cons_1"  ) ) \
+    ( ( cons_2,        "cons_2"  ) ) \
+    ( ( cons_3,        "cons_3"  ) ) \
+    ( ( cons_4,        "cons_4"  ) ) \
+    ( ( cons_5,        "cons_5"  ) ) \
+    ( ( cons_6,        "cons_6"  ) ) \
+    ( ( cons_7,        "cons_7"  ) ) \
+    ( ( cons_8,        "cons_8"  ) ) \
+    ( ( cons_9,        "cons_9"  ) ) \
+    ( ( cons_10,       "cons_10" ) ) \
+    ( ( cons_11,       "cons_11" ) ) \
+    ( ( cons_12,       "cons_12" ) ) \
+    ( ( cons_13,       "cons_13" ) ) \
+    ( ( cons_14,       "cons_14" ) ) \
+    ( ( cons_15,       "cons_15" ) )
+
+#define CTHU_ENUM_VALUE( r, data, value ) BOOST_PP_TUPLE_ELEM( 2, 0, value ),
+
+    enum struct builtin_structure
     {
-        builtin_bv8join = 0xeff'0000,
-        builtin_bv8bot,
-        builtin_bv8top,
-        builtin_bv8opt,
-        builtin_bv8fork,
-        builtin_bv8move,
-        builtin_bv8push,
-        builtin_bv8pop,
-        builtin_bv8drop,
-        builtin_bv8dup,
-        builtin_bv32join,
-        builtin_bv32bot,
-        builtin_bv32top,
-        builtin_bv32opt,
-        builtin_bv32fork,
-        builtin_bv32move,
-        builtin_bv32push,
-        builtin_bv32pop,
-        builtin_bv32drop,
-        builtin_bv32dup,
-        builtin_bool_join,
-        builtin_bool_bot,
-        builtin_bool_top,
-        builtin_bool_opt,
-        builtin_bool_fork,
-        builtin_bool_move,
-        builtin_bool_push,
-        builtin_bool_pop,
-        builtin_bool_drop,
-        builtin_bool_dup,
-        builtin_bool_not,
-        builtin_bool_and,
-        builtin_bool_or,
-        builtin_bool_xor,
-        builtin_bool_assert,
-        builtin_bv32add,
-        builtin_bv32sub,
-        builtin_bv32mul,
-        builtin_bv32sdiv,
-        builtin_bv32srem,
-        builtin_bv32eq,
-        builtin_bv32ne,
-        builtin_bv32slt,
-        builtin_bv32sle,
-        builtin_bv32sge,
-        builtin_bv32sgt,
-        builtin_bv32shl,
-        builtin_bv32ashr,
-        builtin_bv32cons_0,
-        builtin_bv32cons_1,
-        builtin_bv32cons_2,
-        builtin_bv32cons_3,
-        builtin_bv32cons_4,
-        builtin_bv32cons_5,
-        builtin_bv32cons_6,
-        builtin_bv32cons_7,
-        builtin_bv32cons_8,
-        builtin_bv32cons_9,
-        builtin_bv32cons_10,
-        builtin_bv32cons_11,
-        builtin_bv32cons_12,
-        builtin_bv32cons_13,
-        builtin_bv32cons_14,
-        builtin_bv32cons_15,
-        builtin_bv32and,
-        builtin_bv32or,
-        builtin_bv32xor,
-        builtin_bv32neg,
-        builtin_bv32udiv,
-        builtin_bv32urem,
-        builtin_bv32ult,
-        builtin_bv32ule,
-        builtin_bv32uge,
-        builtin_bv32ugt,
-        builtin_bv32lshr,
-        builtin_bv8add,
-        builtin_bv8sub,
-        builtin_bv8mul,
-        builtin_bv8sdiv,
-        builtin_bv8srem,
-        builtin_bv8eq,
-        builtin_bv8ne,
-        builtin_bv8slt,
-        builtin_bv8sle,
-        builtin_bv8sge,
-        builtin_bv8sgt,
-        builtin_bv8shl,
-        builtin_bv8ashr,
-        builtin_bv8cons_0,
-        builtin_bv8cons_1,
-        builtin_bv8cons_2,
-        builtin_bv8cons_3,
-        builtin_bv8cons_4,
-        builtin_bv8cons_5,
-        builtin_bv8cons_6,
-        builtin_bv8cons_7,
-        builtin_bv8cons_8,
-        builtin_bv8cons_9,
-        builtin_bv8cons_10,
-        builtin_bv8cons_11,
-        builtin_bv8cons_12,
-        builtin_bv8cons_13,
-        builtin_bv8cons_14,
-        builtin_bv8cons_15,
-        builtin_bv8and,
-        builtin_bv8or,
-        builtin_bv8xor,
-        builtin_bv8neg,
-        builtin_bv8udiv,
-        builtin_bv8urem,
-        builtin_bv8ult,
-        builtin_bv8ule,
-        builtin_bv8uge,
-        builtin_bv8ugt,
-        builtin_bv8lshr,
-        builtin_bv32cut8,
-        builtin_bv8sext32,
-        builtin_bv8zext32,
-        builtin_func_call,
-        builtin_func_dup,
-        builtin_func_drop,
-        builtin_func_pop,
-        builtin_func_push,
-        builtin_func_move,
-        builtin_func_fork,
-        builtin_bv8cutbool,
-        builtin_bool_ext8,
-        builtin_bv32cutbool,
-        builtin_bool_ext32,
-        builtin_bool_true,
-        builtin_bool_false,
-        builtin_lambda_bind,
-        builtin_lambda_select,
+        BOOST_PP_SEQ_FOR_EACH( CTHU_ENUM_VALUE, _, CTHU_BUILTIN_STRUCTURES )
     };
+
+    enum struct builtin_operation
+    {
+        BOOST_PP_SEQ_FOR_EACH( CTHU_ENUM_VALUE, _, CTHU_BUILTIN_OPERATIONS )
+    };
+
+#undef CTHU_ENUM_VALUE
+
+#define CTHU_ENUM_STRING_CASE( r, type, value ) \
+    case type::BOOST_PP_TUPLE_ELEM( 2, 0, value ): \
+        return BOOST_PP_TUPLE_ELEM( 2, 1, value );
+
+    constexpr std::string_view builtin_structure_name( builtin_structure structure )
+    {
+        switch ( structure )
+        {
+            BOOST_PP_SEQ_FOR_EACH( CTHU_ENUM_STRING_CASE,
+                                   builtin_structure, CTHU_BUILTIN_STRUCTURES )
+        }
+
+        __builtin_unreachable();
+    }
+
+    constexpr std::string_view builtin_operation_name( builtin_operation operation )
+    {
+        switch ( operation )
+        {
+            BOOST_PP_SEQ_FOR_EACH( CTHU_ENUM_STRING_CASE,
+                                   builtin_operation, CTHU_BUILTIN_OPERATIONS )
+        }
+
+        __builtin_unreachable();
+    }
+
+#undef CTHU_ENUM_STRING_CASE
+#undef CTHU_BUILTIN_OPERATIONS
+#undef CTHU_BUILTIN_STRUCTURES
+
+    builtin_operation nibble_operation( uint8_t value );
 }
