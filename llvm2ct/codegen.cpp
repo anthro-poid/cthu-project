@@ -177,6 +177,20 @@ void codegen::materialize_constant( uint16_t stack, llvm::ConstantInt &c,
     }
 }
 
+static llvm::Value *incoming_value( llvm::BasicBlock &predecessor,
+                                    llvm::BasicBlock &successor,
+                                    llvm::Value *input )
+{
+    auto *phi = llvm::dyn_cast< llvm::PHINode >( input );
+
+    if ( phi == nullptr || phi->getParent() != &successor )
+        return input;
+
+    llvm::Value *incoming = phi->getIncomingValueForBlock( &predecessor );
+    assert( incoming && "PHI node has no value for predecessor" );
+    return incoming;
+}
+
 static bool unify_conditional_inputs( llvm::Function &function, auto &live_ins )
 {
     bool changed = false;
@@ -218,6 +232,12 @@ void codegen::compute_block_inputs( llvm::Function &function )
         {
             values.push_back( &instruction );
 
+            if ( llvm::isa< llvm::PHINode >( instruction ) )
+            {
+                live_ins[ &block ].insert( &instruction );
+                continue;
+            }
+
             for ( llvm::Value *operand : instruction.operands() )
                 if ( llvm::isa< llvm::Argument >( operand ) ||
                      ( llvm::isa< llvm::Instruction >( operand ) &&
@@ -234,7 +254,11 @@ void codegen::compute_block_inputs( llvm::Function &function )
             for ( llvm::BasicBlock *successor : llvm::successors( &block ) )
                 for ( llvm::Value *value : live_ins[ successor ] )
                 {
-                    /* Definition is either llvm::Instruction or llvm::Argument. */
+                    value = incoming_value( block, *successor, value );
+
+                    /* A null definition covers Arguments, which must propagate,
+                     * but also constants, which the final ordered pass ignores.
+                     * This can be narrowed to explicit Argument handling later. */
                     auto *definition = llvm::dyn_cast< llvm::Instruction >( value );
 
                     if ( definition == nullptr || definition->getParent() != &block )
@@ -297,15 +321,24 @@ void codegen::visitBasicBlock( llvm::BasicBlock &block )
     _next_stack = 0;
 
     for ( auto &instruction : block )
+    {
+        if ( llvm::isa< llvm::PHINode >( instruction ) )
+            continue;
+
         for ( auto &operand : instruction.operands() )
             ++ _remaining_uses[ operand.get() ];
+    }
 
     for ( llvm::Value *value : _block_inputs[ &block ] )
         _current_subr->input.push_back( define( value ) );
 
     if ( auto *branch = llvm::dyn_cast< llvm::BranchInst >( block.getTerminator() ) )
-        for ( llvm::Value *value : _block_inputs[ branch->getSuccessor( 0 ) ] )
-            ++ _remaining_uses[ value ];
+    {
+        llvm::BasicBlock *successor = branch->getSuccessor( 0 );
+
+        for ( llvm::Value *value : _block_inputs[ successor ] )
+            ++ _remaining_uses[ incoming_value( block, *successor, value ) ];
+    }
 }
 
 void codegen::visitReturnInst( llvm::ReturnInst &instruction )
@@ -338,6 +371,8 @@ void codegen::visitConditionalBranch( llvm::BranchInst &instruction )
     auto &target_inputs = _block_inputs[ target ];
 
     llvm::BasicBlock *false_target = instruction.getSuccessor( 1 );
+    assert( target->phis().empty() && false_target->phis().empty() &&
+            "PHI nodes on conditional edges are not supported yet" );
     auto &branch_inputs = target_inputs;
     llvm::Type *return_type = instruction.getFunction()->getReturnType();
     std::string function_structure = function_structure_name( branch_inputs, return_type );
@@ -438,7 +473,10 @@ void codegen::visitBranchInst( llvm::BranchInst &instruction )
     call.add_in( function_stack );
 
     for ( llvm::Value *value : target_inputs )
-        call.add_in( use( value, arithmetic_structure( value ) ) );
+    {
+        llvm::Value *incoming = incoming_value( *instruction.getParent(), *target, value );
+        call.add_in( use( incoming, arithmetic_structure( incoming ) ) );
+    }
 
     drop_remaining_values();
 
@@ -480,9 +518,7 @@ void codegen::visitCallInst( llvm::CallInst &instruction )
 }
 
 void codegen::visitPHINode( llvm::PHINode & )
-{
-    assert( false && "PHI nodes are not supported yet" );
-}
+{}
 
 void codegen::visitSelectInst( llvm::SelectInst &instruction )
 {
