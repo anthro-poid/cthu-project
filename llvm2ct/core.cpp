@@ -2,20 +2,23 @@
 
 namespace cthu
 {
-const std::string &insn::get_structure_name() const
+std::string_view insn::get_structure_name() const
 {
     if ( auto *l = std::get_if< l_call >( &call ) )
         return l->structure.name;
-    else
-        return std::get< b_call >( call ).struct_name;
+
+    const auto &b = std::get< b_call >( call );
+    return b.structure == builtin_structure::function
+         ? std::string_view{ b.struct_name }
+         : builtin_structure_name( b.structure );
 }
 
-const std::string &insn::get_subr_name() const
+std::string_view insn::get_subr_name() const
 {
     if ( auto *l = std::get_if< l_call >( &call ) )
         return l->subroutine.name;
-    else
-        return std::get< b_call >( call ).subr_name;
+
+    return builtin_operation_name( std::get< b_call >( call ).subroutine );
 }
 
 subr_ptr structure_t::add_subroutine( llvm::BasicBlock *block )

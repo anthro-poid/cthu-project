@@ -1,11 +1,8 @@
 #pragma once
 
-#include "debuginfo.hpp"
 #include "symtab.hpp"
 
 #include <llvm/ADT/DenseMap.h>
-#include <llvm/ADT/ArrayRef.h>
-#include <llvm/BinaryFormat/Dwarf.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Function.h>
@@ -68,11 +65,12 @@ namespace llvm2ct
 
         uint16_t define( llvm::Value *value );
 
-        /* struct_name is passed through to materialize_constant() if value
+        /* structure is passed through to materialize_constant() if value
          * turns out to be a fresh ConstantInt — see there for why it can't
-         * decide its own structure. Defaults to "i₃₂" for call sites with
+         * decide its own structure. Defaults to i32 for call sites with
          * no natural signedness context (e.g. visitStoreInst). */
-        uint16_t use( llvm::Value *value, const std::string &struct_name = "i₃₂" );
+        uint16_t use( llvm::Value *value,
+                      cthu::builtin_structure structure = cthu::builtin_structure::i32 );
         void drop_unused( llvm::Value *value );
         void drop_remaining_values();
         void commit_frees();
@@ -84,56 +82,30 @@ namespace llvm2ct
          * wrote to. Values above 15 are assembled one hexadecimal digit at
          * a time with cons_N, shl, and or.
          *
-         * struct_name is the caller's choice, not derived here: a
+         * structure is the caller's choice, not derived here: a
          * ConstantInt is uniqued by LLVM (every literal `5` of type i32 is
          * the same Value*), so debug_type() on the constant itself can
          * resolve to an arbitrary one of possibly several unrelated source
          * variables that happen to share that value — unlike an
          * instruction's own (unshared) result, there's no reliable
          * per-occurrence signal to read here. */
-        void materialize_constant( uint16_t stack, llvm::ConstantInt &c, const std::string &struct_name );
-        void emit_nibble( uint16_t stack, uint8_t value,
-                          const std::string &struct_name, unsigned width );
+        void materialize_constant( uint16_t stack, llvm::ConstantInt &c,
+                                   cthu::builtin_structure structure );
+        void emit_nibble( uint16_t stack, uint8_t value, cthu::builtin_structure structure );
         void append_nibble( uint16_t accumulator, uint16_t out, uint8_t value,
-                            const std::string &struct_name, unsigned width );
+                            cthu::builtin_structure structure );
 
-        /* The LLVM type's own bit width, not anything from debug info: C
-         * promotes char/short arithmetic to int before the actual
-         * operation (see codegen.cpp's visitAdd comment), so an add's own
-         * type already reflects what's genuinely being computed, unlike
-         * signedness, which IR alone never carries at all. Only 8 and 32
-         * are wired up so far — builtin.hpp only has bv8/bv32 variants. */
-        unsigned width_of( llvm::Value *value );
-
-        /* "i₈"/"u₈"/"i₃₂"/"u₃₂" for the given signedness/width. */
-        std::string struct_name( bool is_unsigned, unsigned width );
-
-        /* struct_name_for returns "bool" for i1. For a value whose
-         * signedness isn't already certain from its own LLVM opcode, it
-         * returns "u₃₂"/"u₈" if its debug type resolves to an unsigned
-         * DIBasicType, "i₃₂"/"i₈" otherwise (signed, or no debug info —
-         * add/sub/mul/etc. execute identically either way today, see
-         * builtin.py's bv_add and friends, but a future signedness-aware
-         * analysis would silently mis-tag an actually-unsigned value
-         * without this). For udiv/urem/lshr/icmp and friends, where the
-         * opcode itself already says signed or unsigned unambiguously, call
-         * struct_name() directly instead — going through debug info there
-         * could contradict the opcode (e.g. default to "signed" on missing
-         * debug info for a UDiv). */
-        std::string struct_name_for( llvm::Value *value );
-
-        std::string function_structure_name( llvm::FunctionType *type );
-        std::string function_structure_name( llvm::ArrayRef< llvm::Value * > inputs,
-                                             llvm::Type *output );
         void compute_block_inputs( llvm::Function &function );
 
         /* Takes the base Instruction, not BinaryOperator, so this covers
          * ICmpInst (2 operands in, 1 out, same as a binary op) too. */
         void binop_insn( llvm::Instruction &instruction,
-                          const std::string &struct_name, const std::string &op_name, cthu::builtin code );
-        void cast_insn( llvm::CastInst &instruction, const std::string &source_struct_name,
-                        const std::string &cast_struct_name, const std::string &op_name,
-                        cthu::builtin code );
+                          cthu::builtin_structure structure,
+                          cthu::builtin_operation operation );
+        void cast_insn( llvm::CastInst &instruction,
+                        cthu::builtin_structure source_structure,
+                        cthu::builtin_structure cast_structure,
+                        cthu::builtin_operation operation );
         void bool_sext_insn( llvm::CastInst &instruction, unsigned width );
 
         using llvm::InstVisitor< codegen >::visit;
@@ -145,6 +117,7 @@ namespace llvm2ct
 
         void visitReturnInst( llvm::ReturnInst &instruction );
         void visitBranchInst( llvm::BranchInst &instruction );
+        void visitConditionalBranch( llvm::BranchInst &instruction );
         void visitCallInst( llvm::CallInst &instruction );
         void visitPHINode( llvm::PHINode &instruction );
         void visitSelectInst( llvm::SelectInst &instruction );

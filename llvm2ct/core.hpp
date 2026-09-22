@@ -6,6 +6,7 @@
 
 #include <list>
 #include <string>
+#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -32,9 +33,9 @@ namespace cthu
 
         struct b_call
         {
+            builtin_structure structure;
+            builtin_operation subroutine;
             std::string struct_name;
-            std::string subr_name;
-            builtin code;
         };
 
         std::variant< l_call, b_call > call;
@@ -42,8 +43,12 @@ namespace cthu
         std::vector< uint16_t > out;
 
         insn( structure_ref s, subr_ref b ) : call( l_call{ s, b } ) {}
-        insn( const std::string &s_name, const std::string &b_name, builtin code ) :
-            call( b_call{ s_name, b_name, code } ) {} 
+
+        insn( builtin_structure structure, builtin_operation operation ) :
+            call( b_call{ structure, operation, {} } ) {}
+
+        insn( const std::string &structure, builtin_operation operation ) :
+            call( b_call{ builtin_structure::function, operation, structure } ) {}
 
         template< typename... Stacks >
         void add_in( Stacks... stacks ) { ( in.push_back( stacks ), ... ); }
@@ -54,8 +59,8 @@ namespace cthu
         uint16_t &get_in(  size_t i ) { return in[  i ]; }
         uint16_t &get_out( size_t i ) { return out[ i ]; }
 
-        const std::string &get_structure_name() const;
-        const std::string &get_subr_name()      const;
+        std::string_view get_structure_name() const;
+        std::string_view get_subr_name()      const;
     };
 
     struct subr_t

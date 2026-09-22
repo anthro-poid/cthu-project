@@ -1,9 +1,9 @@
 #pragma once
 
 #include "core.hpp"
+#include "mapping.hpp"
 
 #include <llvm/ADT/ArrayRef.h>
-#include <llvm/IR/DerivedTypes.h>
 
 namespace cthu
 {
@@ -62,89 +62,11 @@ namespace cthu
         return os;
     }
 
-    inline std::string function_type_code( llvm::Type *type )
-    {
-        if ( type->isIntegerTy( 1 ) )
-            return "b";
-        if ( type->isIntegerTy( 8 ) )
-            return "w₈";
-        if ( type->isIntegerTy( 32 ) )
-            return "w₃₂";
-
-        assert( false && "only bool/8/32-bit function arguments are supported so far" );
-        return {};
-    }
-
-    inline std::string function_type_name( llvm::ArrayRef< llvm::Type * > inputs,
+    inline auto &print_function_signature( auto &os,
+                                           llvm::ArrayRef< llvm::Type * > inputs,
                                            llvm::Type *output )
     {
-        std::string name = "f";
-
-        for ( llvm::Type *parameter : inputs )
-            name += "_" + function_type_code( parameter );
-
-        name += "__";
-
-        if ( !output->isVoidTy() )
-            name += function_type_code( output );
-
-        return name;
-    }
-
-    inline std::string function_type_name( llvm::FunctionType *type )
-    {
-        return function_type_name( type->params(), type->getReturnType() );
-    }
-
-    inline std::string scripted_number( size_t value, bool superscript )
-    {
-        static const std::string subscript[] =
-            { "₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉" };
-        static const std::string superscript_digits[] =
-            { "⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹" };
-        const std::string *digits = superscript ? superscript_digits : subscript;
-        std::string number;
-
-        do
-        {
-            number.insert( 0, digits[ value % 10 ] );
-            value /= 10;
-        }
-        while ( value != 0 );
-
-        return number;
-    }
-
-    inline std::string function_signature_name( size_t inputs, bool has_output )
-    {
-        return "f" + scripted_number( inputs, false )
-                   + scripted_number( has_output ? 1 : 0, true );
-    }
-
-    inline std::string function_signature_name( llvm::FunctionType *type )
-    {
-        return function_signature_name( type->getNumParams(),
-                                        !type->getReturnType()->isVoidTy() );
-    }
-
-    inline std::string cthu_type_name( llvm::Type *type )
-    {
-        if ( type->isIntegerTy( 1 ) )
-            return "bool";
-        if ( type->isIntegerTy( 8 ) )
-            return "w₈";
-        if ( type->isIntegerTy( 32 ) )
-            return "w₃₂";
-
-        assert( false && "only bool/8/32-bit function arguments are supported so far" );
-        return {};
-    }
-
-    inline auto &print_function_signature( auto &os,
-                                            llvm::ArrayRef< llvm::Type * > inputs,
-                                            llvm::Type *output )
-    {
-        std::string name = function_signature_name( inputs.size(), !output->isVoidTy() );
+        std::string name = llvm2ct::function_signature_name( inputs.size(), !output->isVoidTy() );
         os << "signature " << name << "[ F, S, B";
 
         for ( size_t i = 0; i < inputs.size(); ++ i )
@@ -194,11 +116,11 @@ namespace cthu
             os << "\n    (\n";
 
             for ( size_t i = 0; i < inputs.size(); ++ i )
-                os << "        " << cthu_type_name( inputs[ i ] )
+                os << "        " << llvm2ct::type_name( inputs[ i ] )
                    << " drop " << i << "\n";
 
             if ( !output->isVoidTy() )
-                os << "        " << cthu_type_name( output ) << " "
+                os << "        " << llvm2ct::type_name( output ) << " "
                    << operation << " -> out\n";
 
             os << "    )\n\n";
@@ -232,7 +154,7 @@ namespace cthu
         os << "\n    (\n";
 
         for ( size_t i = 0; i < inputs.size(); ++ i )
-            os << "        " << cthu_type_name( inputs[ i ] )
+            os << "        " << llvm2ct::type_name( inputs[ i ] )
                << " fork " << i << " -> " << i << "_1 " << i << "_2\n";
 
         auto print_call = []( auto &os, const std::string &name,
@@ -255,7 +177,7 @@ namespace cthu
         print_call( os, name, inputs, output, "B", "2" );
 
         if ( !output->isVoidTy() )
-            os << "        " << cthu_type_name( output )
+            os << "        " << llvm2ct::type_name( output )
                << " join out1 out2 -> out\n";
     }
 
@@ -280,16 +202,16 @@ namespace cthu
                                            llvm::ArrayRef< llvm::Type * > inputs,
                                            llvm::Type *output )
     {
-        std::string name = function_type_name( inputs, output );
+        std::string name = llvm2ct::function_structure_name( inputs, output );
         os << "structure " << name << " : "
-           << function_signature_name( inputs.size(), !output->isVoidTy() )
+           << llvm2ct::function_signature_name( inputs.size(), !output->isVoidTy() )
            << "[ func, stck, bool";
 
         for ( llvm::Type *parameter : inputs )
-            os << ", " << cthu_type_name( parameter );
+            os << ", " << llvm2ct::type_name( parameter );
 
         if ( !output->isVoidTy() )
-            os << ", " << cthu_type_name( output );
+            os << ", " << llvm2ct::type_name( output );
 
         print_function_builtins( os );
         print_function_top_bot( os, name, inputs, output );
