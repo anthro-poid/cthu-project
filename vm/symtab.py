@@ -89,8 +89,6 @@ class Subr:
         self.output: list[ int ] = []
         self.instrs: list[ int ] = []
 
-        self.par_args: list[ Any ] = []
-
         self.stack_types: dict[ int, BuiltinType ] = {}
         self.is_defined = False
 

@@ -285,6 +285,15 @@ def bool_assert( vm: 'Interpret', params: list[ int ] ) -> None:
 
 ### Function operations
 
+class Binder:
+
+    def __init__( self, func: Subr, *inputs: tuple[ Any, ... ] ) -> None:
+        self.func   = func
+        self.inputs = [ *inputs ]
+
+    def add_input( self, i: Any ) -> None:
+        self.inputs.append( i )
+
 def _func_permute( mapping: dict[ int, int ], actual: list[ int ],
                    formal: list[ int ] ) -> dict[ int, int ]:
     result: dict[ int, int ] = {}
@@ -329,8 +338,14 @@ def func_dup( vm: 'Interpret', params: list[ int ] ) -> None:
     vm.push( params[ 2 ], func )
 
 def func_call( vm: 'Interpret', params: list[ int ] ) -> None:
-    func = vm.pop( params[ 0 ] )
-    partial_size = len( func.par_args )
+    func  = vm.pop( params[ 0 ] )
+    pargs = []
+
+    if isinstance( func, Binder ):
+        pargs = func.inputs
+        func  = func.func
+
+    assert isinstance( func, Subr )
 
     stored_pc      = vm.pc
     stored_exec    = vm.executing
@@ -338,12 +353,10 @@ def func_call( vm: 'Interpret', params: list[ int ] ) -> None:
 
     vm.pc        = 0
     vm.executing = func
-    vm.map       = _func_permute( vm.map, params[ 1 : ], func.input[ partial_size : ] + func.output )
+    vm.map       = _func_permute( vm.map, params[ 1 : ], func.input[ len( pargs ) : ] + func.output )
 
-    for arg, sid in zip( func.par_args, func.input ):
+    for arg, sid in zip( pargs, func.input ):
         vm.push( sid, arg )
-
-    func.par_args = []
 
     vm.run()
 
@@ -355,8 +368,12 @@ def func_call( vm: 'Interpret', params: list[ int ] ) -> None:
 
 def lambda_bind( vm: 'Interpret', params: list[ int ] ) -> None:
     func = vm.pop( params[ 0 ] )
-    func.par_args.append( vm.pop( params[ 1 ] ) )
-    vm.push( params[ 2 ], func )
+    if isinstance( func, Subr ):
+        vm.push( params[ 2 ], Binder( func, vm.pop( params[ 1 ] ) ) )
+    else:
+        assert isinstance( func, Binder )
+        func.add_input( vm.pop( params[ 1 ] ) )
+        vm.push( params[ 2 ], func )
 
 def lambda_select( vm: 'Interpret', params: list[ int ] ) -> None:
     cmp_val = vm.pop( params[ 0 ] )
