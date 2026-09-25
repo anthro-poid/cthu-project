@@ -404,36 +404,21 @@ void codegen::visitConditionalBranch( llvm::BranchInst &instruction )
     false_value.add_out( false_function );
     _current_subr->body.push_back( std::move( false_value ) );
 
-    uint16_t true_opt = allocate_stack();
-    cthu::insn true_opt_value{ function_structure, cthu::builtin_operation::opt };
-    true_opt_value.add_out( true_opt );
-    _current_subr->body.push_back( std::move( true_opt_value ) );
-
     uint16_t true_alternative = allocate_stack();
-    cthu::insn choose_true{ "f_b_f__f", cthu::builtin_operation::call };
-    choose_true.add_in( true_opt, true_condition, true_function );
+    cthu::insn choose_true{ function_structure, cthu::builtin_operation::opt };
+    choose_true.add_in( true_condition, true_function );
     choose_true.add_out( true_alternative );
     _current_subr->body.push_back( std::move( choose_true ) );
 
-    uint16_t false_opt = allocate_stack();
-    cthu::insn false_opt_value{ function_structure, cthu::builtin_operation::opt };
-    false_opt_value.add_out( false_opt );
-    _current_subr->body.push_back( std::move( false_opt_value ) );
-
     uint16_t false_alternative = allocate_stack();
-    cthu::insn choose_false{ "f_b_f__f", cthu::builtin_operation::call };
-    choose_false.add_in( false_opt, false_condition, false_function );
+    cthu::insn choose_false{ function_structure, cthu::builtin_operation::opt };
+    choose_false.add_in( false_condition, false_function );
     choose_false.add_out( false_alternative );
     _current_subr->body.push_back( std::move( choose_false ) );
 
-    uint16_t join = allocate_stack();
-    cthu::insn join_value{ function_structure, cthu::builtin_operation::join };
-    join_value.add_out( join );
-    _current_subr->body.push_back( std::move( join_value ) );
-
     uint16_t continuation = allocate_stack();
-    cthu::insn join_alternatives{ "f_f_f__f", cthu::builtin_operation::call };
-    join_alternatives.add_in( join, true_alternative, false_alternative );
+    cthu::insn join_alternatives{ function_structure, cthu::builtin_operation::join };
+    join_alternatives.add_in( true_alternative, false_alternative );
     join_alternatives.add_out( continuation );
     _current_subr->body.push_back( std::move( join_alternatives ) );
 

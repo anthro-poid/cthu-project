@@ -129,11 +129,11 @@ namespace cthu
         print( "f_bot", "bot" );
         print( "f_top", "top" );
 
-        os << "    bot = λ -> out\n"
+        os << "    bot = μ -> out\n"
            << "    (\n"
            << "        " << name << " f_bot -> out\n"
            << "    )\n\n"
-           << "    top = λ -> out\n"
+           << "    top = μ -> out\n"
            << "    (\n"
            << "        " << name << " f_top -> out\n"
            << "    )\n\n";
@@ -184,13 +184,13 @@ namespace cthu
     static inline void print_function_join_opt( auto &os, const std::string &name )
     {
         os << "    )\n\n"
-           << "    join = λ a b -> out\n"
+           << "    join = μ a b -> out\n"
            << "    (\n"
            << "        " << name << " frame -> frame\n"
            << "        lambda bind frame a -> partial\n"
            << "        lambda bind partial b -> out\n"
            << "    )\n\n"
-           << "    opt = λ condition function -> out\n"
+           << "    opt = μ condition function -> out\n"
            << "    (\n"
            << "        " << name << " f_bot -> bot\n"
            << "        lambda select condition function bot -> out\n"
