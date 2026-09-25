@@ -1,5 +1,5 @@
 from parser import Program
-from symtab import Subr
+from symtab import LAMBDA_BASE, MU_BASE, Subr
 
 
 class Substitution:
@@ -28,8 +28,8 @@ class Substitution:
             opcode = self.get_subr_code(   instr )
 
             impl_code = self.program.get_subr_impl_code( struct, opcode )
-            if impl_code < 0xeff_0000:
-                impl_code += 0x100_0000
+            if impl_code < MU_BASE:
+                impl_code += LAMBDA_BASE
 
             substituted.append( ( impl_code << 36 ) | ( instr & ( ( 1 << 36 ) - 1 ) ) ) 
 
@@ -39,5 +39,7 @@ class Substitution:
         for l in self.program.lambdas:
             self.substitute_subr( l )
 
-        return self.program
+        for m in self.program.mus:
+            self.substitute_subr( m )
 
+        return self.program

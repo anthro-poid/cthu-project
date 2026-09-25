@@ -1,0 +1,47 @@
+structure do_while
+(
+    body = λ i → out
+    (
+        i₃₂ cons_1 → one
+        i₃₂ add i one → j
+        do_while condition -> cond
+        fᵢⁱ call cond j → out
+    )
+
+    exit = λ i → out
+    (
+        w₃₂ move i → out
+    )
+
+    condition = λ i → out
+    (
+        i₃₂ cons_5 → five
+        w₃₂ dup i → i₁ i₂
+        i₃₂ lt? i₁ five → cmp
+
+        bool dup cmp   → cmp₁ cmp₂
+        bool not cmp₂  → cmp₃
+
+        do_while exit → exit
+        do_while body → body
+
+        fᵢⁱ opt cmp₁ body → alt₁
+        fᵢⁱ opt cmp₃ exit → alt₂
+
+        fᵢⁱ join alt₁ alt₂ → cont
+        fᵢⁱ call cont i₂ → out
+    )
+)
+
+structure main
+(
+    run = λ
+    (
+        i₃₂ cons_0 → a
+        do_while body → body
+        fᵢⁱ call body a → out
+        i₃₂ cons_5   → b
+        i₃₂ eq? out b → c
+        bool assert c
+    )
+)

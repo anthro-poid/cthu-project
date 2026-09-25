@@ -42,14 +42,11 @@ structure collatz
         collatz even_step → ev
         collatz odd_step  → od
 
-        fᵢⁱ opt → opt1
-        f_b_f__f call opt1 e1 ev → alt1
-        fᵢⁱ opt → opt2
-        f_b_f__f call opt2 is_odd od → alt2
+        fᵢⁱ opt e1 ev → alt1
+        fᵢⁱ opt is_odd od → alt2
 
-        fᵢⁱ join → join
-        f_f_f__f call join alt1 alt2 → cont2
-        fᵢⁱ call cont2 n2         → out
+        fᵢⁱ join alt1 alt2 → cont2
+        fᵢⁱ call cont2 n2 → out
     )
 
     ; --- outer level: n == 1 vs n != 1 ---
@@ -72,14 +69,11 @@ structure collatz
         collatz base    → base_f
         collatz recurse → rec_f
 
-        fᵢⁱ opt → opt1
-        f_b_f__f call opt1 b1 base_f → alt1
-        fᵢⁱ opt → opt2
-        f_b_f__f call opt2 not_base rec_f → alt2
+        fᵢⁱ opt b1 base_f → alt1
+        fᵢⁱ opt not_base rec_f → alt2
 
-        fᵢⁱ join → join
-        f_f_f__f call join alt1 alt2 → cont
-        fᵢⁱ call cont n2               → out
+        fᵢⁱ join alt1 alt2 → cont
+        fᵢⁱ call cont n2 → out
     )
 )
 

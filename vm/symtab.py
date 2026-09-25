@@ -1,6 +1,11 @@
 from typing import Any, Union
 
 
+LAMBDA_BASE  = 0x100_0000
+MU_BASE      = 0xdff_0000
+BUILTIN_BASE = 0xeff_0000
+
+
 class BuiltinType:
     pass
 
@@ -193,8 +198,8 @@ class Structure:
     def __init__( self, struct_code: int ) -> None:
         self.struct_code = struct_code
 
-        self.subr_name_to_code:      dict[ str, int ] = {}
-        self.subr_code_to_impl_code: list[ int ]      = []
+        self.subr_name_to_code:      dict[ str, int ]           = {}
+        self.subr_code_to_impl_code: list[ Union[ int, None ] ] = []
 
         self.signatures: list[ tuple[ Signature, list[ BuiltinType ] ] ] = []
 
@@ -222,23 +227,33 @@ class Structure:
     def subr_opcode( self, name: str ) -> int:
         return self.subr_name_to_code[ name ]
 
-    def subr_impl_code( self, _id: Union[ str, int ] ) -> int:
+    def subr_impl_code( self, _id: Union[ str, int ] ) -> Union[ int, None ]:
         if isinstance( _id, str ):
             return self.subr_code_to_impl_code[ self.subr_opcode( _id ) ]
         else:
             return self.subr_code_to_impl_code[ _id ]
 
     def register_subr( self, name: str, impl_code: int ) -> int:
-        if name in self.subr_name_to_code:
+        opcode = self.declare_subr( name )
+        previous = self.subr_code_to_impl_code[ opcode ]
+
+        if previous is not None and previous != impl_code:
+            raise RuntimeError( "Operation '" + name + "' is defined more than"
+                                "once in a single structure." )
+
+        self.subr_code_to_impl_code[ opcode ] = impl_code
+        return opcode
+
+    def declare_subr( self, name: str ) -> int:
+        if self.has_subr( name ):
             return self.subr_opcode( name )
 
-        struct_code = len( self.subr_code_to_impl_code )
-        assert struct_code < 0xff
+        opcode = len( self.subr_code_to_impl_code )
+        assert opcode < 0xff
 
-        self.subr_name_to_code[ name ] = struct_code
-        self.subr_code_to_impl_code.append( impl_code )
-
-        return struct_code
+        self.subr_name_to_code[ name ] = opcode
+        self.subr_code_to_impl_code.append( None )
+        return opcode
 
 
 class Symtab:
@@ -251,6 +266,7 @@ class Symtab:
         self.signatures: list[ Signature ] = []
 
         self.lambdas: list[ Subr ] = []
+        self.mus:     list[ Subr ] = []
 
     def has_structure( self, _id: Union[ str, int ] ) -> bool:
         if isinstance( _id, str ):
@@ -282,11 +298,14 @@ class Symtab:
     def get_lambda( self, code: int ) -> Subr:
         return self.lambdas[ code ]
 
+    def get_mu( self, code: int ) -> Subr:
+        return self.mus[ code - MU_BASE ]
+
     def get_subr_code( self, struct: Structure, name: str ) -> int:
         if struct.has_subr( name ):
             return struct.subr_opcode( name )
 
-        return self.register_lambda( struct, name ).get_code()
+        return struct.declare_subr( name )
 
     def register_structure( self, name: str ) -> Structure:
         if self.has_structure( name ):
@@ -300,15 +319,36 @@ class Symtab:
         return self.structures[ -1 ]
 
     def register_lambda( self, struct: Structure, name: str ) -> Subr:
-        if struct.has_subr( name ):
-            return self.lambdas[ struct.subr_impl_code( name ) ]
+        opcode = struct.declare_subr( name )
+        impl_code = struct.subr_impl_code( opcode )
 
-        assert len( self.lambdas ) < 0xdff_0000
+        if impl_code is not None:
+            if impl_code >= MU_BASE:
+                raise RuntimeError( "Operation '" + name + "' is not λ." )
 
-        lambda_opcode = struct.register_subr( name, len( self.lambdas ) )
-        self.lambdas.append( Subr( lambda_opcode ) )
+            return self.lambdas[ impl_code ]
 
+        assert LAMBDA_BASE + len( self.lambdas ) < MU_BASE
+
+        struct.register_subr( name, len( self.lambdas ) )
+        self.lambdas.append( Subr( opcode ) )
         return self.lambdas[ -1 ]
+
+    def register_mu( self, struct: Structure, name: str ) -> Subr:
+        opcode = struct.declare_subr( name )
+        impl_code = struct.subr_impl_code( opcode )
+
+        if impl_code is not None:
+            if not MU_BASE <= impl_code < BUILTIN_BASE:
+                raise RuntimeError( "Operation '" + name + "' is not μ." )
+
+            return self.get_mu( impl_code )
+
+        assert MU_BASE + len( self.mus ) < BUILTIN_BASE
+
+        struct.register_subr( name, MU_BASE + len( self.mus ) )
+        self.mus.append( Subr( opcode ) )
+        return self.mus[ -1 ]
 
     def register_builtin( self, struct: Structure, name: str, code: int ) -> None:
         struct.register_subr( name, code )

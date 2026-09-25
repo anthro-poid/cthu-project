@@ -11,12 +11,12 @@ structure f : f₀⁰[ func, stck, bool ]
     f_bot = λ ∅ → ∅ ()
     f_top = λ ∅ → ∅ ()
 
-    bot = λ ∅ → out
+    bot = μ ∅ → out
     (
         f f_bot -> out
     )
 
-    top = λ ∅ → out
+    top = μ ∅ → out
     (
         f f_top -> out
     )
@@ -27,14 +27,14 @@ structure f : f₀⁰[ func, stck, bool ]
         f call B
     )
 
-    join = λ a b → out
+    join = μ a b → out
     (
         f frame -> frame
         lambda bind frame a -> x
         lambda bind x b -> out
     )
 
-    opt = λ a b → out
+    opt = μ a b → out
     (
         f f_bot -> bot
         lambda select a b bot -> out
@@ -63,12 +63,12 @@ structure fᵢⁱ : f₁¹[ func, stck, bool, w₃₂, w₃₂ ]
         w₃₂ top -> b
     )
 
-    bot = λ ∅ → out
+    bot = μ ∅ → out
     (
         fᵢⁱ f_bot -> out
     )
 
-    top = λ ∅ → out
+    top = μ ∅ → out
     (
         fᵢⁱ f_top -> out
     )
@@ -81,14 +81,14 @@ structure fᵢⁱ : f₁¹[ func, stck, bool, w₃₂, w₃₂ ]
         w₃₂ join out₁ out₂ -> out
     )
 
-    join = λ a b → out
+    join = μ a b → out
     (
         fᵢⁱ frame -> frame
         lambda bind frame a -> x
         lambda bind x b -> out
     )
 
-    opt = λ a b → out
+    opt = μ a b → out
     (
         fᵢⁱ f_bot -> bot
         lambda select a b bot -> out
@@ -119,12 +119,12 @@ structure fᵢᵢⁱ : f₂¹[ func, stck, bool, w₃₂, w₃₂, w₃₂ ]
         w₃₂ top -> c
     )
 
-    bot = λ ∅ → out
+    bot = μ ∅ → out
     (
         fᵢᵢⁱ f_bot -> out
     )
 
-    top = λ ∅ → out
+    top = μ ∅ → out
     (
         fᵢᵢⁱ f_top -> out
     )
@@ -138,14 +138,14 @@ structure fᵢᵢⁱ : f₂¹[ func, stck, bool, w₃₂, w₃₂, w₃₂ ]
         w₃₂ join out₁ out₂ -> out
     )
 
-    join = λ a b → out
+    join = μ a b → out
     (
         fᵢᵢⁱ frame -> frame
         lambda bind frame a -> x
         lambda bind x b -> out
     )
 
-    opt = λ a b → out
+    opt = μ a b → out
     (
         fᵢᵢⁱ f_bot -> bot
         lambda select a b bot -> out
@@ -178,12 +178,12 @@ structure fᵢᵢᵢⁱ : f₃¹[ func, stck, bool, w₃₂, w₃₂, w₃₂, w
         w₃₂ top -> d
     )
 
-    bot = λ ∅ → out
+    bot = μ ∅ → out
     (
         fᵢᵢᵢⁱ f_bot -> out
     )
 
-    top = λ ∅ → out
+    top = μ ∅ → out
     (
         fᵢᵢᵢⁱ f_top -> out
     )
@@ -198,14 +198,14 @@ structure fᵢᵢᵢⁱ : f₃¹[ func, stck, bool, w₃₂, w₃₂, w₃₂, w
         w₃₂ join out₁ out₂ -> out
     )
 
-    join = λ a b → out
+    join = μ a b → out
     (
         fᵢᵢᵢⁱ frame -> frame
         lambda bind frame a -> x
         lambda bind x b -> out
     )
 
-    opt = λ a b → out
+    opt = μ a b → out
     (
         fᵢᵢᵢⁱ f_bot -> bot
         lambda select a b bot -> out

@@ -31,14 +31,11 @@ structure fib
         fib base  → base
         fib rec   → rec
 
-        fᵢᵢᵢⁱ opt → opt₁
-        f_b_f__f call opt₁ cmp₁ base → alt₁
-        fᵢᵢᵢⁱ opt → opt₂
-        f_b_f__f call opt₂ cmp₃ rec → alt₂
+        fᵢᵢᵢⁱ opt cmp₁ base → alt₁
+        fᵢᵢᵢⁱ opt cmp₃ rec → alt₂
 
-        fᵢᵢᵢⁱ join → join
-        f_f_f__f call join alt₁ alt₂ → cont
-        fᵢᵢᵢⁱ call cont a b i₂     → out
+        fᵢᵢᵢⁱ join alt₁ alt₂ → cont
+        fᵢᵢᵢⁱ call cont a b i₂ → out
     )
 
     compute = λ in → out

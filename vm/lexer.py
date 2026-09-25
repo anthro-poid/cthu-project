@@ -6,15 +6,16 @@ class Category( Enum ):
     INVALID  = 1
     COMMENT  = 2
     LAMBDA   = 3
-    KWSTRUCT = 4
-    KWSIG    = 5
-    KWTYPE   = 6
-    EOL      = 7
-    PUNCT    = 8
-    IDENT    = 9
-    ARROW    = 10
-    BRACKET  = 11
-    PAREN    = 12
+    MU       = 4
+    KWSTRUCT = 5
+    KWSIG    = 6
+    KWTYPE   = 7
+    EOL      = 8
+    PUNCT    = 9
+    IDENT    = 10
+    ARROW    = 11
+    BRACKET  = 12
+    PAREN    = 13
 
 
 class Token:
@@ -150,6 +151,9 @@ class Lexer:
 
         if self.match( 'λ' ):
             return Token.build_token( 'λ', Category.LAMBDA )
+
+        if self.match( 'μ' ):
+            return Token.build_token( 'μ', Category.MU )
 
         return self.identifier()
 

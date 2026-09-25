@@ -32,7 +32,7 @@ def main() -> None:
     program = parser.get_program()
     executable = Substitution( program ).run()
 
-    i = Interpret( executable.run_idx, executable.lambdas )
+    i = Interpret( executable.run_idx, executable.lambdas, executable.mus )
     i.run()
 
     if print_result:

@@ -30,14 +30,11 @@ structure fact
         fact base  → base
         fact rec   → rec
 
-        fᵢᵢⁱ opt → opt₁
-        f_b_f__f call opt₁ cmp₁ base → alt₁
-        fᵢᵢⁱ opt → opt₂
-        f_b_f__f call opt₂ cmp₃ rec → alt₂
+        fᵢᵢⁱ opt cmp₁ base → alt₁
+        fᵢᵢⁱ opt cmp₃ rec → alt₂
 
-        fᵢᵢⁱ join → join
-        f_f_f__f call join alt₁ alt₂ → cont
-        fᵢᵢⁱ call cont a i₂     → out
+        fᵢᵢⁱ join alt₁ alt₂ → cont
+        fᵢᵢⁱ call cont a i₂ → out
     )
 
     compute = λ in → out

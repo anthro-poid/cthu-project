@@ -294,25 +294,6 @@ class Binder:
     def add_input( self, i: Any ) -> None:
         self.inputs.append( i )
 
-def _func_permute( mapping: dict[ int, int ], actual: list[ int ],
-                   formal: list[ int ] ) -> dict[ int, int ]:
-    result: dict[ int, int ] = {}
-    used: set[ int ] = set()
-
-    for caller, callee in zip( actual, formal ):
-        result[ callee ] = mapping.get( caller, caller )
-        used.add( mapping.get( caller, caller ) )
-
-    for caller in actual:
-        if mapping.get( caller, caller ) not in result:
-            for callee in formal:
-                if callee not in used:
-                    result[ mapping.get( caller, caller ) ] = callee
-                    used.add( callee )
-                    break
-
-    return result
-
 def func_fork( vm: 'Interpret', params: list[ int ] ) -> None:
     func = vm.pop( params[ 0 ] )
     vm.push( params[ 1 ], func )
@@ -347,22 +328,7 @@ def func_call( vm: 'Interpret', params: list[ int ] ) -> None:
 
     assert isinstance( func, Subr )
 
-    stored_pc      = vm.pc
-    stored_exec    = vm.executing
-    stored_mapping = vm.map
-
-    vm.pc        = 0
-    vm.executing = func
-    vm.map       = _func_permute( vm.map, params[ 1 : ], func.input[ len( pargs ) : ] + func.output )
-
-    for arg, sid in zip( pargs, func.input ):
-        vm.push( sid, arg )
-
-    vm.run()
-
-    vm.pc        = stored_pc
-    vm.executing = stored_exec
-    vm.map       = stored_mapping
+    vm.call( func, params[ 1 : ], pargs )
 
 ### Lambda operations
 

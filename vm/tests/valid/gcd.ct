@@ -26,14 +26,11 @@ structure gcd
 
         gcd base  → base
         gcd rec   → rec
-        fᵢᵢⁱ opt → opt1
-        f_b_f__f call opt1 cmp1 base → alt1
-        fᵢᵢⁱ opt → opt2
-        f_b_f__f call opt2 cmp3 rec → alt2
+        fᵢᵢⁱ opt cmp1 base → alt1
+        fᵢᵢⁱ opt cmp3 rec → alt2
 
-        fᵢᵢⁱ join → join
-        f_f_f__f call join alt1 alt2 → cont
-        fᵢᵢⁱ call cont a b2       → out
+        fᵢᵢⁱ join alt1 alt2 → cont
+        fᵢᵢⁱ call cont a b2 → out
     )
 
     compute = λ a b → out

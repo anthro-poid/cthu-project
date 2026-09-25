@@ -1,14 +1,15 @@
-from symtab  import Subr
-from typing  import Any
+from symtab  import BUILTIN_BASE, LAMBDA_BASE, MU_BASE, Subr
+from typing  import Any, Union
 from builtin import exec_op
 
 
 class Interpret:
 
-    def __init__( self, main: int, subrs: list[ Subr ] ) -> None:
+    def __init__( self, main: int, lambdas: list[ Subr ], mus: list[ Subr ] ) -> None:
         self.stacks: list[ list[ Any ] ] = [ [] for _ in range( 511 ) ]
-        self.subrs = subrs
-        self.executing = subrs[ main ]
+        self.lambdas = lambdas
+        self.mus = mus
+        self.executing = lambdas[ main ]
         self.pc = 0
         self.map: dict[ int, int ] = {}
 
@@ -27,10 +28,51 @@ class Interpret:
         self.stacks[ self.map.get( sid, sid ) ].append( value )
 
     def is_lambda( self, instr: int ) -> bool:
-        return 0x100_0000 <= ( ( instr >> 36 ) & 0xffff ) < 0xeff_0000
+        code = instr >> 36
+        return LAMBDA_BASE <= code < MU_BASE
+
+    def is_mu( self, instr: int ) -> bool:
+        code = instr >> 36
+        return MU_BASE <= code < BUILTIN_BASE
 
     def is_physical( self, instr: int ) -> bool:
-        return 0xeff_0000 <= ( instr >> 36 ) < 0xf00_0000
+        return BUILTIN_BASE <= ( instr >> 36 ) < 0xf00_0000
+
+    def _permute( self, actual: list[ int ], formal: list[ int ] ) -> dict[ int, int ]:
+        result: dict[ int, int ] = {}
+        used: set[ int ] = set()
+
+        for caller, callee in zip( actual, formal ):
+            result[ callee ] = self.map.get( caller, caller )
+            used.add( self.map.get( caller, caller ) )
+
+        for caller in actual:
+            if self.map.get( caller, caller ) not in result:
+                for callee in formal:
+                    if callee not in used:
+                        result[ self.map.get( caller, caller ) ] = callee
+                        used.add( callee )
+                        break
+
+        return result
+
+    def call( self, subr: Subr, actual: list[ int ], pargs: list[ Any ] = [] ) -> None:
+        stored_pc        = self.pc
+        stored_executing = self.executing
+        stored_mapping   = self.map
+
+        self.pc        = 0
+        self.executing = subr
+        self.map       = self._permute( actual, subr.input[ len( pargs ) : ] + subr.output )
+
+        for arg, sid in zip( pargs, subr.input ):
+            self.push( sid, arg )
+
+        self.run()
+
+        self.pc        = stored_pc
+        self.executing = stored_executing
+        self.map       = stored_mapping
 
     def is_extend( self, instr: int ) -> bool:
         return ( ( instr >> 54 ) & 0x3ff ) == 0x3c 
@@ -74,8 +116,11 @@ class Interpret:
 
             if self.is_physical( instr ):
                 exec_op( self, code, params )
+            elif self.is_mu( instr ):
+                self.call( self.mus[ code - MU_BASE ], params )
             else:
-                self.push( params[ 0 ], self.subrs[ code - 0x100_0000 ] )
+                assert self.is_lambda( instr )
+                self.push( params[ 0 ], self.lambdas[ code - LAMBDA_BASE ] )
 
             self.pc += 1
 

@@ -1,6 +1,6 @@
 from typing  import Union
 from lexer   import Category, Token
-from symtab  import Subr, Structure, Symtab, Signature
+from symtab  import BUILTIN_BASE, MU_BASE, Subr, Structure, Symtab, Signature
 from builtin import name_to_code
 
 
@@ -9,13 +9,16 @@ class Program:
     def __init__( self, symtab: Symtab, run_idx: int ) -> None:
         self.structures = symtab.structures
         self.lambdas = symtab.lambdas
+        self.mus = symtab.mus
         self.run_idx = run_idx
 
     def get_structure( self, code: int ) -> Structure:
         return self.structures[ code ]
 
     def get_subr_impl_code( self, scode: int, opcode: int ) -> int:
-        return self.get_structure( scode ).subr_code_to_impl_code[ opcode ]
+        impl_code = self.get_structure( scode ).subr_code_to_impl_code[ opcode ]
+        assert impl_code is not None
+        return impl_code
 
 
 class Parser:
@@ -102,11 +105,14 @@ class Parser:
 
         self.consume( Category.PUNCT, '=' )
 
-        if not self.match( Category.LAMBDA ):
+        if self.match( Category.LAMBDA ):
+            subr = self.symtab.register_lambda( struct, name )
+        elif self.match( Category.MU ):
+            subr = self.symtab.register_mu( struct, name )
+        else:
             self.symtab.register_builtin( struct, name, name_to_code[ self.identifier() ] )
             return
-            
-        subr = self.symtab.register_lambda( struct, name )
+
         subr.is_defined = True
         subr.add_input( self.identifiers() )
 
@@ -119,7 +125,9 @@ class Parser:
             self.parse_instr( subr )
 
         if in_main and name == "run":
-            self.run_idx = struct.subr_impl_code( name )
+            impl_code = struct.subr_impl_code( name )
+            assert impl_code is not None
+            self.run_idx = impl_code
 
     def parse_subrs( self, struct: Structure, in_main: bool ) -> None:
         while not self.match( Category.PAREN, ')' ):
@@ -251,7 +259,16 @@ class Parser:
             for op_name, local_opcode in struct.subr_name_to_code.items():
                 impl_code = struct.subr_code_to_impl_code[ local_opcode ]
 
-                if impl_code < 0xeff_0000 and not self.symtab.get_lambda( impl_code ).is_defined:
+                if impl_code is None:
+                    raise RuntimeError( "Operation '" + op_name + "' on structure '" +
+                                         struct_name + "' is referenced but never defined." )
+
+                if impl_code < MU_BASE and not self.symtab.get_lambda( impl_code ).is_defined:
+                    raise RuntimeError( "Operation '" + op_name + "' on structure '" +
+                                         struct_name + "' is referenced but never defined." )
+
+                if MU_BASE <= impl_code < BUILTIN_BASE and \
+                        not self.symtab.get_mu( impl_code ).is_defined:
                     raise RuntimeError( "Operation '" + op_name + "' on structure '" +
                                          struct_name + "' is referenced but never defined." )
 
