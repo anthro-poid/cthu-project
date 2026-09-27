@@ -87,6 +87,8 @@ namespace cthu
         template< typename... Stacks >
         void add_out( Stacks... stacks ) { ( output.push_back( stacks ), ... ); }
 
+        auto &get_input() { return input; }
+
         template< typename T, typename U >
         void add_insn( T &&strct, U &&op, slist ins, slist outs )
         {
