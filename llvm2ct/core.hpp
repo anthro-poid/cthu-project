@@ -4,9 +4,11 @@
 
 #include <llvm/IR/Function.h>
 
+#include <initializer_list>
 #include <list>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -38,17 +40,22 @@ namespace cthu
             std::string struct_name;
         };
 
+        using slist = std::initializer_list< uint16_t >;
+
         std::variant< l_call, b_call > call;
         std::vector< uint16_t > in;
         std::vector< uint16_t > out;
 
-        insn( structure_ref s, subr_ref b ) : call( l_call{ s, b } ) {}
+        insn( structure_ref s, subr_ref b, slist ins = {}, slist outs = {} ) :
+            call( l_call{ s, b } ), in( ins ), out( outs ) {}
 
-        insn( builtin_structure structure, builtin_operation operation ) :
-            call( b_call{ structure, operation, {} } ) {}
+        insn( builtin_structure structure, builtin_operation operation, slist ins = {}, slist outs = {} ) :
+            call( b_call{ structure, operation, {} } ),
+            in( ins ), out( outs ) {}
 
-        insn( const std::string &structure, builtin_operation operation ) :
-            call( b_call{ builtin_structure::function, operation, structure } ) {}
+        insn( const std::string &structure, builtin_operation operation, slist ins = {}, slist outs = {} ) :
+            call( b_call{ builtin_structure::function, operation, structure } ),
+            in( ins ), out( outs ) {}
 
         template< typename... Stacks >
         void add_in( Stacks... stacks ) { ( in.push_back( stacks ), ... ); }
