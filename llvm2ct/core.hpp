@@ -88,6 +88,7 @@ namespace cthu
         structure_t( std::string n ) : name{ std::move( n ) }, next_subr_id{ 0 } {}
 
         subr_ptr add_subroutine( llvm::BasicBlock * );
+        subr_ptr add_subroutine();
     };
 
     struct module_t

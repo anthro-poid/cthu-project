@@ -191,34 +191,6 @@ static llvm::Value *incoming_value( llvm::BasicBlock &predecessor,
     return incoming;
 }
 
-static bool unify_conditional_inputs( llvm::Function &function, auto &live_ins )
-{
-    bool changed = false;
-
-    for ( llvm::BasicBlock &block : function )
-    {
-        auto *branch = llvm::dyn_cast< llvm::BranchInst >( block.getTerminator() );
-        if ( branch == nullptr || branch->isUnconditional() )
-            continue;
-
-        auto &true_inputs = live_ins[ branch->getSuccessor( 0 ) ];
-        auto &false_inputs = live_ins[ branch->getSuccessor( 1 ) ];
-        std::vector< llvm::Value * > inputs( true_inputs.begin(), true_inputs.end() );
-
-        for ( llvm::Value *value : false_inputs )
-            if ( true_inputs.insert( value ).second )
-            {
-                inputs.push_back( value );
-                changed = true;
-            }
-
-        for ( llvm::Value *value : inputs )
-            changed |= false_inputs.insert( value ).second;
-    }
-
-    return changed;
-}
-
 void codegen::compute_block_inputs( llvm::Function &function )
 {
     llvm::DenseMap< llvm::BasicBlock *, llvm::DenseSet< llvm::Value * > > live_ins;
@@ -248,7 +220,7 @@ void codegen::compute_block_inputs( llvm::Function &function )
     bool changed;
     do
     {
-        changed = unify_conditional_inputs( function, live_ins );
+        changed = false;
 
         for ( llvm::BasicBlock &block : llvm::reverse( function ) )
             for ( llvm::BasicBlock *successor : llvm::successors( &block ) )
@@ -329,16 +301,25 @@ void codegen::visitBasicBlock( llvm::BasicBlock &block )
             ++ _remaining_uses[ operand.get() ];
     }
 
-    for ( llvm::Value *value : _block_inputs[ &block ] )
-        _current_subr->input.push_back( define( value ) );
-
     if ( auto *branch = llvm::dyn_cast< llvm::BranchInst >( block.getTerminator() ) )
     {
-        llvm::BasicBlock *successor = branch->getSuccessor( 0 );
-
-        for ( llvm::Value *value : _block_inputs[ successor ] )
-            ++ _remaining_uses[ incoming_value( block, *successor, value ) ];
+        if ( branch->isUnconditional() )
+        {
+            llvm::BasicBlock *successor = branch->getSuccessor( 0 );
+            for ( llvm::Value *value : _block_inputs[ successor ] )
+                ++ _remaining_uses[ incoming_value( block, *successor, value ) ];
+        }
+        else
+        {
+            auto targs = edge_arguments( *branch, branch->getSuccessor( 0 ) );
+            auto fargs = edge_arguments( *branch, branch->getSuccessor( 1 ) );
+            for ( llvm::Value *value : branch_arguments( targs, fargs ) )
+                ++ _remaining_uses[ value ];
+        }
     }
+
+    for ( llvm::Value *value : _block_inputs[ &block ] )
+        _current_subr->input.push_back( define( value ) );
 }
 
 void codegen::visitReturnInst( llvm::ReturnInst &instruction )
@@ -365,17 +346,140 @@ void codegen::visitReturnInst( llvm::ReturnInst &instruction )
     drop_remaining_values();
 }
 
+std::vector< llvm::Value * > codegen::edge_arguments( llvm::BranchInst &instruction, llvm::BasicBlock *target )
+{
+    std::vector< llvm::Value * > arguments;
+
+    for ( llvm::Value *input : _block_inputs[ target ] )
+        arguments.push_back( incoming_value( *instruction.getParent(), *target, input ) );
+
+    return arguments;
+}
+
+std::vector< llvm::Value * > codegen::branch_arguments( llvm::ArrayRef< llvm::Value * > first, 
+                                                        llvm::ArrayRef< llvm::Value * > second )
+{
+    std::vector< llvm::Value * > args;
+
+    auto append = [ &args ]( auto values )
+    {
+        for ( llvm::Value *value : values )
+            if ( std::find( args.begin(), args.end(), value ) == args.end() )
+                args.push_back( value );
+    };
+
+    append( first );
+    append( second );
+
+    return args;
+}
+
+cthu::subr_ref codegen::create_branch_frame( llvm::BranchInst &instruction,
+                                             llvm::BasicBlock *target, 
+                                             llvm::ArrayRef< llvm::Value * > arguments,
+                                             llvm::ArrayRef< llvm::Value * > target_arguments )
+{
+    cthu::structure_ref structure = _symtab.get_structure( instruction.getFunction() );
+    cthu::subr_ref frame = *structure.add_subroutine();
+    uint16_t next_stack = 0;
+    llvm::DenseMap< llvm::Value *, uint16_t > input_stacks;
+
+    for ( llvm::Value *value : arguments )
+    {
+        input_stacks[ value ] = next_stack;
+        frame.input.push_back( next_stack ++ );
+    }
+
+    llvm::DenseMap< llvm::Value *, unsigned > uses;
+
+    for ( llvm::Value *value : target_arguments )
+        ++ uses[ value ];
+
+    llvm::DenseMap< llvm::Value *, std::vector< uint16_t > > available;
+
+    for ( llvm::Value *value : arguments )
+    {
+        uint16_t stack = input_stacks[ value ];
+        unsigned copies = uses.lookup( value );
+
+        if ( copies == 0 )
+        {
+            cthu::insn drop{ type_to_structure( value->getType() ),
+                             cthu::builtin_operation::drop };
+            drop.add_in( stack );
+            frame.body.push_back( std::move( drop ) );
+            continue;
+        }
+
+        for ( ; copies > 1; -- copies )
+        {
+            uint16_t first = next_stack ++;
+            uint16_t rest = next_stack ++;
+            cthu::insn duplicate{ type_to_structure( value->getType() ),
+                                  cthu::builtin_operation::dup };
+            duplicate.add_in( stack );
+            duplicate.add_out( first, rest );
+            frame.body.push_back( std::move( duplicate ) );
+            available[ value ].push_back( first );
+            stack = rest;
+        }
+
+        available[ value ].push_back( stack );
+    }
+
+    uint16_t function_stack = next_stack ++;
+    cthu::insn function_value{ structure, _symtab.get_subroutine( target ) };
+    function_value.add_out( function_stack );
+    frame.body.push_back( std::move( function_value ) );
+
+    llvm::Type *return_type = instruction.getFunction()->getReturnType();
+    cthu::insn call{ function_structure_name( _block_inputs[ target ], return_type ),
+                     cthu::builtin_operation::call };
+    call.add_in( function_stack );
+
+    for ( llvm::Value *value : target_arguments )
+    {
+        auto &stacks = available[ value ];
+        assert( !stacks.empty() );
+        call.add_in( stacks.back() );
+        stacks.pop_back();
+    }
+
+    if ( !return_type->isVoidTy() )
+    {
+        uint16_t output = next_stack ++;
+        call.add_out( output );
+        frame.output.push_back( output );
+    }
+
+    frame.body.push_back( std::move( call ) );
+    return frame;
+}
+
 void codegen::visitConditionalBranch( llvm::BranchInst &instruction )
 {
-    llvm::BasicBlock *target = instruction.getSuccessor( 0 );
-    auto &target_inputs = _block_inputs[ target ];
-
+    llvm::BasicBlock *true_target = instruction.getSuccessor( 0 );
     llvm::BasicBlock *false_target = instruction.getSuccessor( 1 );
-    assert( target->phis().empty() && false_target->phis().empty() &&
-            "PHI nodes on conditional edges are not supported yet" );
-    auto &branch_inputs = target_inputs;
+    std::vector< llvm::Value * > true_arguments = edge_arguments( instruction,
+                                                                  true_target );
+    std::vector< llvm::Value * > false_arguments = edge_arguments( instruction,
+                                                                   false_target );
+    std::vector< llvm::Value * > arguments = branch_arguments( true_arguments,
+                                                               false_arguments );
     llvm::Type *return_type = instruction.getFunction()->getReturnType();
-    std::string function_structure = function_structure_name( branch_inputs, return_type );
+    std::vector< llvm::Type * > types;
+
+    for ( llvm::Value *value : arguments )
+        types.push_back( value->getType() );
+
+    _generated_function_types.emplace_back( types, return_type );
+    std::string function_structure = function_structure_name( types, return_type );
+    cthu::subr_ptr true_subroutine = true_arguments == arguments
+        ? &_symtab.get_subroutine( true_target )
+        : &create_branch_frame( instruction, true_target, arguments, true_arguments );
+    cthu::subr_ptr false_subroutine = false_arguments == arguments
+        ? &_symtab.get_subroutine( false_target )
+        : &create_branch_frame( instruction, false_target, arguments, false_arguments );
 
     uint16_t condition = use( instruction.getCondition(), cthu::builtin_structure::boolean );
     uint16_t true_condition = allocate_stack();
@@ -395,12 +499,12 @@ void codegen::visitConditionalBranch( llvm::BranchInst &instruction )
 
     cthu::structure_ref structure = _symtab.get_structure( instruction.getFunction() );
     uint16_t true_function = allocate_stack();
-    cthu::insn true_value{ structure, _symtab.get_subroutine( target ) };
+    cthu::insn true_value{ structure, *true_subroutine };
     true_value.add_out( true_function );
     _current_subr->body.push_back( std::move( true_value ) );
 
     uint16_t false_function = allocate_stack();
-    cthu::insn false_value{ structure, _symtab.get_subroutine( false_target ) };
+    cthu::insn false_value{ structure, *false_subroutine };
     false_value.add_out( false_function );
     _current_subr->body.push_back( std::move( false_value ) );
 
@@ -424,8 +528,9 @@ void codegen::visitConditionalBranch( llvm::BranchInst &instruction )
 
     cthu::insn call{ function_structure, cthu::builtin_operation::call };
     call.add_in( continuation );
-    for ( llvm::Value *value : branch_inputs )
-            call.add_in( use( value, arithmetic_structure( value ) ) );
+
+    for ( llvm::Value *value : arguments )
+        call.add_in( use( value, arithmetic_structure( value ) ) );
 
     drop_remaining_values();
 
@@ -454,12 +559,14 @@ void codegen::visitBranchInst( llvm::BranchInst &instruction )
     _current_subr->body.push_back( std::move( func ) );
 
     llvm::Type *return_type = instruction.getFunction()->getReturnType();
-    cthu::insn call{ function_structure_name( target_inputs, return_type ), cthu::builtin_operation::call };
+    cthu::insn call{ function_structure_name( target_inputs, return_type ),
+                     cthu::builtin_operation::call };
     call.add_in( function_stack );
 
     for ( llvm::Value *value : target_inputs )
     {
-        llvm::Value *incoming = incoming_value( *instruction.getParent(), *target, value );
+        llvm::Value *incoming = incoming_value( *instruction.getParent(), *target,
+                                                value );
         call.add_in( use( incoming, arithmetic_structure( incoming ) ) );
     }
 

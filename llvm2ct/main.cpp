@@ -52,6 +52,9 @@ void print_files( auto &c )
             emit_function_type( inputs, output );
         }
     }
+
+    for ( const llvm2ct::function_type &type : c._generated_function_types )
+        emit_function_type( type.inputs, type.output );
 }
 
 int main( int argc, char *argv[] )

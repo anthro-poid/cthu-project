@@ -16,6 +16,12 @@
 
 namespace llvm2ct
 {
+    struct function_type
+    {
+        std::vector< llvm::Type * > inputs;
+        llvm::Type *output;
+    };
+
     struct codegen : llvm::InstVisitor< codegen >
     {
         llvm::LLVMContext &_context;
@@ -41,7 +47,9 @@ namespace llvm2ct
          * are included in _remaining_uses by visitBasicBlock. */
         llvm::DenseMap< llvm::Value *, uint16_t > _stack_of;
         llvm::DenseMap< llvm::Value *, unsigned > _remaining_uses;
+
         llvm::DenseMap< llvm::BasicBlock *, std::vector< llvm::Value * > > _block_inputs;
+        std::vector< function_type > _generated_function_types;
         std::vector< uint16_t > _free_stacks;
         std::vector< uint16_t > _pending_frees;
         uint16_t _next_stack = 0;
@@ -96,6 +104,14 @@ namespace llvm2ct
                             cthu::builtin_structure structure );
 
         void compute_block_inputs( llvm::Function &function );
+        std::vector< llvm::Value * > edge_arguments( llvm::BranchInst &instruction,
+                                                     llvm::BasicBlock *target );
+        std::vector< llvm::Value * > branch_arguments( llvm::ArrayRef< llvm::Value * > first,
+                                                       llvm::ArrayRef< llvm::Value * > second );
+        cthu::subr_ref create_branch_frame( llvm::BranchInst &instruction,
+                                            llvm::BasicBlock *target,
+                                            llvm::ArrayRef< llvm::Value * > arguments,
+                                            llvm::ArrayRef< llvm::Value * > target_arguments );
 
         /* Takes the base Instruction, not BinaryOperator, so this covers
          * ICmpInst (2 operands in, 1 out, same as a binary op) too. */
