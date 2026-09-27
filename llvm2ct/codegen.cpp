@@ -1,4 +1,5 @@
 #include "codegen.hpp"
+#include "builtin.hpp"
 #include "mapping.hpp"
 
 #include <llvm/ADT/DenseSet.h>
@@ -43,7 +44,6 @@ uint16_t codegen::use( llvm::Value *value, cthu::builtin_structure structure )
     else
     {
         stack = define( value );
-
         if ( auto *c = llvm::dyn_cast< llvm::ConstantInt >( value ) )
             materialize_constant( stack, *c, structure );
     }
@@ -56,15 +56,11 @@ uint16_t codegen::use( llvm::Value *value, cthu::builtin_structure structure )
          * dup it: this read gets one fresh copy, _stack_of is updated to
          * the other fresh copy for whichever read comes next (which may
          * itself dup again, if further reads remain after that one). */
+
         uint16_t copy_a = allocate_stack();
         uint16_t copy_b = allocate_stack();
-        auto value_type = type_to_structure( value->getType() );
-        cthu::insn dup{ value_type, cthu::builtin_operation::dup };
-        dup.add_in( stack );
-        dup.add_out( copy_a, copy_b );
-
-        _current_subr->body.push_back( std::move( dup ) );
-
+        auto type = type_to_structure( value->getType() );
+        _current_subr->add_insn( type, cthu::builtin_operation::dup, { stack }, { copy_a, copy_b } );
         _stack_of[ value ] = copy_b;
         return copy_a;
     }
@@ -82,9 +78,8 @@ void codegen::drop_unused( llvm::Value *value )
         return;
 
     auto structure = type_to_structure( value->getType() );
-    cthu::insn drop{ structure, cthu::builtin_operation::drop };
-    drop.add_in( it->second );
-    _current_subr->body.push_back( std::move( drop ) );
+    _current_subr->add_insn( structure, cthu::builtin_operation::drop,
+                             { it->second }, {} );
 
     _pending_frees.push_back( it->second );
     _stack_of.erase( it );
@@ -107,9 +102,7 @@ void codegen::emit_nibble( uint16_t stack, uint8_t value,
     assert( value < 16 );
 
     auto operation = cthu::nibble_operation( value );
-    cthu::insn i{ structure, operation };
-    i.add_out( stack );
-    _current_subr->body.push_back( std::move( i ) );
+    _current_subr->add_insn( structure, operation, {}, { stack } );
 }
 
 void codegen::append_nibble( uint16_t accumulator, uint16_t out, uint8_t value,
@@ -119,10 +112,8 @@ void codegen::append_nibble( uint16_t accumulator, uint16_t out, uint8_t value,
     emit_nibble( shift_stack, 4, structure );
 
     uint16_t shifted = allocate_stack();
-    cthu::insn shift_insn{ structure, cthu::builtin_operation::shl };
-    shift_insn.add_in( accumulator, shift_stack );
-    shift_insn.add_out( shifted );
-    _current_subr->body.push_back( std::move( shift_insn ) );
+    _current_subr->add_insn( structure, cthu::builtin_operation::shl,
+                             { accumulator, shift_stack }, { shifted } );
 
     /* These stacks are safe to reuse after the completed shl. Do not
      * commit _pending_frees here: they may belong to operands of the
@@ -132,10 +123,8 @@ void codegen::append_nibble( uint16_t accumulator, uint16_t out, uint8_t value,
     uint16_t digit_stack = allocate_stack();
     emit_nibble( digit_stack, value, structure );
 
-    cthu::insn or_insn{ structure, cthu::builtin_operation::bit_or };
-    or_insn.add_in( shifted, digit_stack );
-    or_insn.add_out( out );
-    _current_subr->body.push_back( std::move( or_insn ) );
+    _current_subr->add_insn( structure, cthu::builtin_operation::bit_or,
+                             { shifted, digit_stack }, { out } );
 
     add_free_stacks( shifted, digit_stack );
 }
@@ -146,10 +135,9 @@ void codegen::materialize_constant( uint16_t stack, llvm::ConstantInt &c,
     if ( c.getType()->isIntegerTy( 1 ) )
     {
         auto operation = c.isOne() ? cthu::builtin_operation::true_value
-                                                      : cthu::builtin_operation::false_value;
-        cthu::insn cons{ cthu::builtin_structure::boolean, operation };
-        cons.add_out( stack );
-        _current_subr->body.push_back( std::move( cons ) );
+                                   : cthu::builtin_operation::false_value;
+        _current_subr->add_insn( cthu::builtin_structure::boolean, operation,
+                                 {}, { stack } );
         return;
     }
 
@@ -319,7 +307,7 @@ void codegen::visitBasicBlock( llvm::BasicBlock &block )
     }
 
     for ( llvm::Value *value : _block_inputs[ &block ] )
-        _current_subr->input.push_back( define( value ) );
+        _current_subr->add_in( define( value ) );
 }
 
 void codegen::visitReturnInst( llvm::ReturnInst &instruction )
@@ -327,20 +315,18 @@ void codegen::visitReturnInst( llvm::ReturnInst &instruction )
     if ( auto *value = instruction.getReturnValue() )
     {
         uint16_t output = use( value );
+        auto &in_vec = _current_subr->get_input();
 
-        if ( std::find( _current_subr->input.begin(), _current_subr->input.end(), output )
-                != _current_subr->input.end() )
+        if ( std::find( in_vec.begin(), in_vec.end(), output ) != in_vec.end() )
         {
             uint16_t moved = _next_stack ++;
             auto structure = type_to_structure( value->getType() );
-            cthu::insn move{ structure, cthu::builtin_operation::move };
-            move.add_in( output );
-            move.add_out( moved );
-            _current_subr->body.push_back( std::move( move ) );
+            _current_subr->add_insn( structure, cthu::builtin_operation::move,
+                                     { output }, { moved } );
             output = moved;
         }
 
-        _current_subr->output.push_back( output );
+        _current_subr->add_out( output );
     }
 
     drop_remaining_values();
@@ -387,7 +373,7 @@ cthu::subr_ref codegen::create_branch_frame( llvm::BranchInst &instruction,
     for ( llvm::Value *value : arguments )
     {
         input_stacks[ value ] = next_stack;
-        frame.input.push_back( next_stack ++ );
+        frame.add_in( next_stack ++ );
     }
 
     llvm::DenseMap< llvm::Value *, unsigned > uses;
@@ -399,27 +385,22 @@ cthu::subr_ref codegen::create_branch_frame( llvm::BranchInst &instruction,
 
     for ( llvm::Value *value : arguments )
     {
-        uint16_t stack = input_stacks[ value ];
+        uint16_t stack  = input_stacks[ value ];
         unsigned copies = uses.lookup( value );
 
         if ( copies == 0 )
         {
-            cthu::insn drop{ type_to_structure( value->getType() ),
-                             cthu::builtin_operation::drop };
-            drop.add_in( stack );
-            frame.body.push_back( std::move( drop ) );
+            frame.add_insn( type_to_structure( value->getType() ),
+                            cthu::builtin_operation::drop, { stack }, {} );
             continue;
         }
 
         for ( ; copies > 1; -- copies )
         {
             uint16_t first = next_stack ++;
-            uint16_t rest = next_stack ++;
-            cthu::insn duplicate{ type_to_structure( value->getType() ),
-                                  cthu::builtin_operation::dup };
-            duplicate.add_in( stack );
-            duplicate.add_out( first, rest );
-            frame.body.push_back( std::move( duplicate ) );
+            uint16_t rest  = next_stack ++;
+            frame.add_insn( type_to_structure( value->getType() ),
+                            cthu::builtin_operation::dup, { stack }, { first, rest } );
             available[ value ].push_back( first );
             stack = rest;
         }
@@ -428,14 +409,11 @@ cthu::subr_ref codegen::create_branch_frame( llvm::BranchInst &instruction,
     }
 
     uint16_t function_stack = next_stack ++;
-    cthu::insn function_value{ structure, _symtab.get_subroutine( target ) };
-    function_value.add_out( function_stack );
-    frame.body.push_back( std::move( function_value ) );
+    frame.add_insn( structure, _symtab.get_subroutine( target ), {}, { function_stack } );
 
     llvm::Type *return_type = instruction.getFunction()->getReturnType();
     cthu::insn call{ function_structure_name( _block_inputs[ target ], return_type ),
-                     cthu::builtin_operation::call };
-    call.add_in( function_stack );
+                     cthu::builtin_operation::call, { function_stack } };
 
     for ( llvm::Value *value : target_arguments )
     {
@@ -449,10 +427,10 @@ cthu::subr_ref codegen::create_branch_frame( llvm::BranchInst &instruction,
     {
         uint16_t output = next_stack ++;
         call.add_out( output );
-        frame.output.push_back( output );
+        frame.add_out( output );
     }
 
-    frame.body.push_back( std::move( call ) );
+    frame.add_insn( std::move( call ) );
     return frame;
 }
 
@@ -484,50 +462,35 @@ void codegen::visitConditionalBranch( llvm::BranchInst &instruction )
     uint16_t condition = use( instruction.getCondition(), cthu::builtin_structure::boolean );
     uint16_t true_condition = allocate_stack();
     uint16_t condition_to_negate = allocate_stack();
-    cthu::insn duplicate{ cthu::builtin_structure::boolean,
-                          cthu::builtin_operation::dup };
-    duplicate.add_in( condition );
-    duplicate.add_out( true_condition, condition_to_negate );
-    _current_subr->body.push_back( std::move( duplicate ) );
+    _current_subr->add_insn( cthu::builtin_structure::boolean,
+                             cthu::builtin_operation::dup, { condition },
+                             { true_condition, condition_to_negate } );
 
     uint16_t false_condition = allocate_stack();
-    cthu::insn negate{ cthu::builtin_structure::boolean,
-                       cthu::builtin_operation::logical_not };
-    negate.add_in( condition_to_negate );
-    negate.add_out( false_condition );
-    _current_subr->body.push_back( std::move( negate ) );
+    _current_subr->add_insn( cthu::builtin_structure::boolean,
+                             cthu::builtin_operation::logical_not,
+                             { condition_to_negate }, { false_condition } );
 
     cthu::structure_ref structure = _symtab.get_structure( instruction.getFunction() );
     uint16_t true_function = allocate_stack();
-    cthu::insn true_value{ structure, *true_subroutine };
-    true_value.add_out( true_function );
-    _current_subr->body.push_back( std::move( true_value ) );
+    _current_subr->add_insn( structure, *true_subroutine, {}, { true_function } );
 
     uint16_t false_function = allocate_stack();
-    cthu::insn false_value{ structure, *false_subroutine };
-    false_value.add_out( false_function );
-    _current_subr->body.push_back( std::move( false_value ) );
+    _current_subr->add_insn( structure, *false_subroutine, {}, { false_function } );
 
     uint16_t true_alternative = allocate_stack();
-    cthu::insn choose_true{ function_structure, cthu::builtin_operation::opt };
-    choose_true.add_in( true_condition, true_function );
-    choose_true.add_out( true_alternative );
-    _current_subr->body.push_back( std::move( choose_true ) );
+    _current_subr->add_insn( function_structure, cthu::builtin_operation::opt,
+                             { true_condition, true_function }, { true_alternative } );
 
     uint16_t false_alternative = allocate_stack();
-    cthu::insn choose_false{ function_structure, cthu::builtin_operation::opt };
-    choose_false.add_in( false_condition, false_function );
-    choose_false.add_out( false_alternative );
-    _current_subr->body.push_back( std::move( choose_false ) );
+    _current_subr->add_insn( function_structure, cthu::builtin_operation::opt,
+                             { false_condition, false_function }, { false_alternative } );
 
     uint16_t continuation = allocate_stack();
-    cthu::insn join_alternatives{ function_structure, cthu::builtin_operation::join };
-    join_alternatives.add_in( true_alternative, false_alternative );
-    join_alternatives.add_out( continuation );
-    _current_subr->body.push_back( std::move( join_alternatives ) );
+    _current_subr->add_insn( function_structure, cthu::builtin_operation::join,
+                             { true_alternative, false_alternative }, { continuation } );
 
-    cthu::insn call{ function_structure, cthu::builtin_operation::call };
-    call.add_in( continuation );
+    cthu::insn call{ function_structure, cthu::builtin_operation::call, { continuation } };
 
     for ( llvm::Value *value : arguments )
         call.add_in( use( value, arithmetic_structure( value ) ) );
@@ -538,10 +501,10 @@ void codegen::visitConditionalBranch( llvm::BranchInst &instruction )
     {
         uint16_t output = _next_stack ++;
         call.add_out( output );
-        _current_subr->output.push_back( output );
+        _current_subr->add_out( output );
     }
 
-    _current_subr->body.push_back( std::move( call ) );
+    _current_subr->add_insn( std::move( call ) );
 }
 
 void codegen::visitBranchInst( llvm::BranchInst &instruction )
@@ -553,20 +516,16 @@ void codegen::visitBranchInst( llvm::BranchInst &instruction )
     auto &target_inputs = _block_inputs[ target ];
 
     auto function_stack = allocate_stack();
-    cthu::insn func{ _symtab.get_structure( instruction.getFunction() ),
-                        _symtab.get_subroutine( target ) };
-    func.add_out( function_stack );
-    _current_subr->body.push_back( std::move( func ) );
+    _current_subr->add_insn( _symtab.get_structure( instruction.getFunction() ),
+                             _symtab.get_subroutine( target ), {}, { function_stack } );
 
     llvm::Type *return_type = instruction.getFunction()->getReturnType();
     cthu::insn call{ function_structure_name( target_inputs, return_type ),
-                     cthu::builtin_operation::call };
-    call.add_in( function_stack );
+                     cthu::builtin_operation::call, { function_stack } };
 
     for ( llvm::Value *value : target_inputs )
     {
-        llvm::Value *incoming = incoming_value( *instruction.getParent(), *target,
-                                                value );
+        llvm::Value *incoming = incoming_value( *instruction.getParent(), *target, value );
         call.add_in( use( incoming, arithmetic_structure( incoming ) ) );
     }
 
@@ -576,10 +535,10 @@ void codegen::visitBranchInst( llvm::BranchInst &instruction )
     {
         uint16_t output = _next_stack ++;
         call.add_out( output );
-        _current_subr->output.push_back( output );
+        _current_subr->add_out( output );
     }
 
-    _current_subr->body.push_back( std::move( call ) );
+    _current_subr->add_insn( std::move( call ) );
     _pending_frees.push_back( function_stack );
 }
 
@@ -592,12 +551,11 @@ void codegen::visitCallInst( llvm::CallInst &instruction )
 
     assert( callee && !callee->isDeclaration() && "only direct calls to defined functions are supported" );
     uint16_t function_stack = allocate_stack();
-    cthu::insn function_value{ _symtab.get_structure( callee ), _symtab.get_subroutine( &callee->getEntryBlock() ) };
-    function_value.add_out( function_stack );
-    _current_subr->body.push_back( std::move( function_value ) );
+    _current_subr->add_insn( _symtab.get_structure( callee ),
+                             _symtab.get_subroutine( &callee->getEntryBlock() ),
+                             {}, { function_stack } );
 
-    cthu::insn call{ function_structure_name( callee->getFunctionType() ), cthu::builtin_operation::call };
-    call.add_in( function_stack );
+    cthu::insn call{ function_structure_name( callee->getFunctionType() ), cthu::builtin_operation::call, { function_stack } };
 
     for ( llvm::Value *argument : instruction.args() )
         call.add_in( use( argument, arithmetic_structure( argument ) ) );
@@ -605,7 +563,7 @@ void codegen::visitCallInst( llvm::CallInst &instruction )
     if ( !instruction.getType()->isVoidTy() )
         call.add_out( define( &instruction ) );
 
-    _current_subr->body.push_back( std::move( call ) );
+    _current_subr->add_insn( std::move( call ) );
     _pending_frees.push_back( function_stack );
 }
 
@@ -625,34 +583,26 @@ void codegen::visitSelectInst( llvm::SelectInst &instruction )
 
     uint16_t true_condition = allocate_stack();
     uint16_t condition_to_negate = allocate_stack();
-    cthu::insn duplicate{ cthu::builtin_structure::boolean, cthu::builtin_operation::dup };
-    duplicate.add_in( condition );
-    duplicate.add_out( true_condition, condition_to_negate );
-    _current_subr->body.push_back( std::move( duplicate ) );
+    _current_subr->add_insn( cthu::builtin_structure::boolean,
+                             cthu::builtin_operation::dup, { condition },
+                             { true_condition, condition_to_negate } );
 
     uint16_t false_condition = allocate_stack();
-    cthu::insn negate{ cthu::builtin_structure::boolean, cthu::builtin_operation::logical_not };
-    negate.add_in( condition_to_negate );
-    negate.add_out( false_condition );
-    _current_subr->body.push_back( std::move( negate ) );
+    _current_subr->add_insn( cthu::builtin_structure::boolean,
+                             cthu::builtin_operation::logical_not,
+                             { condition_to_negate }, { false_condition } );
 
     uint16_t true_result = allocate_stack();
-    cthu::insn choose_true{ structure, cthu::builtin_operation::opt };
-    choose_true.add_in( true_condition, when_true );
-    choose_true.add_out( true_result );
-    _current_subr->body.push_back( std::move( choose_true ) );
+    _current_subr->add_insn( structure, cthu::builtin_operation::opt,
+                             { true_condition, when_true }, { true_result } );
 
     uint16_t false_result = allocate_stack();
-    cthu::insn choose_false{ structure, cthu::builtin_operation::opt };
-    choose_false.add_in( false_condition, when_false );
-    choose_false.add_out( false_result );
-    _current_subr->body.push_back( std::move( choose_false ) );
+    _current_subr->add_insn( structure, cthu::builtin_operation::opt,
+                             { false_condition, when_false }, { false_result } );
 
     uint16_t out = define( &instruction );
-    cthu::insn join_insn{ structure, cthu::builtin_operation::join };
-    join_insn.add_in( true_result, false_result );
-    join_insn.add_out( out );
-    _current_subr->body.push_back( std::move( join_insn ) );
+    _current_subr->add_insn( structure, cthu::builtin_operation::join,
+                             { true_result, false_result }, { out } );
 
     add_free_stacks( true_condition, condition_to_negate, false_condition, true_result, false_result );
 }
@@ -669,11 +619,7 @@ void codegen::binop_insn( llvm::Instruction &instruction,
     uint16_t rhs = use( instruction.getOperand( 1 ), structure );
     uint16_t out = define( &instruction );
 
-    cthu::insn i{ structure, operation };
-    i.add_in( lhs, rhs );
-    i.add_out( out );
-
-    _current_subr->body.push_back( std::move( i ) );
+    _current_subr->add_insn( structure, operation, { lhs, rhs }, { out } );
 }
 
 void codegen::cast_insn( llvm::CastInst &instruction,
@@ -684,11 +630,7 @@ void codegen::cast_insn( llvm::CastInst &instruction,
     uint16_t in = use( instruction.getOperand( 0 ), source_structure );
     uint16_t out = define( &instruction );
 
-    cthu::insn i{ cast_structure, operation };
-    i.add_in( in );
-    i.add_out( out );
-
-    _current_subr->body.push_back( std::move( i ) );
+    _current_subr->add_insn( cast_structure, operation, { in }, { out } );
 }
 
 void codegen::bool_sext_insn( llvm::CastInst &instruction, unsigned width )
@@ -698,20 +640,16 @@ void codegen::bool_sext_insn( llvm::CastInst &instruction, unsigned width )
 
     auto conversion = width == 8 ? cthu::builtin_structure::bool_8
                                  : cthu::builtin_structure::bool_32;
-    cthu::insn ext{ conversion, cthu::builtin_operation::ext };
-    ext.add_in( in );
-    ext.add_out( extended );
-    _current_subr->body.push_back( std::move( ext ) );
+    _current_subr->add_insn( conversion, cthu::builtin_operation::ext,
+                             { in }, { extended } );
 
     uint16_t zero = allocate_stack();
     auto signed_structure = arithmetic_structure( false, width );
     emit_nibble( zero, 0, signed_structure );
 
     uint16_t out = define( &instruction );
-    cthu::insn negate{ signed_structure, cthu::builtin_operation::sub };
-    negate.add_in( zero, extended );
-    negate.add_out( out );
-    _current_subr->body.push_back( std::move( negate ) );
+    _current_subr->add_insn( signed_structure, cthu::builtin_operation::sub,
+                             { zero, extended }, { out } );
 
     add_free_stacks( zero, extended );
 }
