@@ -47,14 +47,14 @@ unsigned integer_width( llvm::Value *value )
     return integer_width( value->getType() );
 }
 
-cthu::builtin_structure type_to_structure( llvm::Type *type )
+cthu::b_strct type_to_structure( llvm::Type *type )
 {
     if ( type->isIntegerTy() )
         switch ( integer_width( type ) )
         {
-            case 1:  return cthu::builtin_structure::boolean;
-            case 8:  return cthu::builtin_structure::w8;
-            case 32: return cthu::builtin_structure::w32;
+            case 1:  return cthu::b_strct::boolean;
+            case 8:  return cthu::b_strct::w8;
+            case 32: return cthu::b_strct::w32;
             default: __builtin_unreachable();
         }
     
@@ -66,20 +66,19 @@ std::string type_name( llvm::Type *type )
     return std::string{ cthu::builtin_structure_name( type_to_structure( type ) ) };
 }
 
-cthu::builtin_structure arithmetic_structure( bool is_unsigned, unsigned width )
+cthu::b_strct arithmetic_structure( bool is_unsigned, unsigned width )
 {
     if ( width == 1 )
-        return cthu::builtin_structure::boolean;
+        return cthu::b_strct::boolean;
 
-    return width == 8
-        ? ( is_unsigned ? cthu::builtin_structure::u8 : cthu::builtin_structure::i8 )
-        : ( is_unsigned ? cthu::builtin_structure::u32 : cthu::builtin_structure::i32 );
+    return width == 8 ? ( is_unsigned ? cthu::b_strct::u8 : cthu::b_strct::i8 )
+                      : ( is_unsigned ? cthu::b_strct::u32 : cthu::b_strct::i32 );
 }
 
-cthu::builtin_structure arithmetic_structure( llvm::Value *value )
+cthu::b_strct arithmetic_structure( llvm::Value *value )
 {
     if ( value->getType()->isIntegerTy( 1 ) )
-        return cthu::builtin_structure::boolean;
+        return cthu::b_strct::boolean;
 
     bool is_unsigned = false;
 

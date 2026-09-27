@@ -8,7 +8,7 @@ std::string_view insn::get_structure_name() const
         return l->structure.name;
 
     const auto &b = std::get< b_call >( call );
-    return b.structure == builtin_structure::function
+    return b.structure == b_strct::function
          ? std::string_view{ b.struct_name }
          : builtin_structure_name( b.structure );
 }

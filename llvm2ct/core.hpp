@@ -35,8 +35,8 @@ namespace cthu
 
         struct b_call
         {
-            builtin_structure structure;
-            builtin_operation subroutine;
+            b_strct structure;
+            b_op subroutine;
             std::string struct_name;
         };
 
@@ -49,12 +49,12 @@ namespace cthu
         insn( structure_ref s, subr_ref b, slist ins = {}, slist outs = {} ) :
             call( l_call{ s, b } ), in( ins ), out( outs ) {}
 
-        insn( builtin_structure structure, builtin_operation operation, slist ins = {}, slist outs = {} ) :
+        insn( b_strct structure, b_op operation, slist ins = {}, slist outs = {} ) :
             call( b_call{ structure, operation, {} } ),
             in( ins ), out( outs ) {}
 
-        insn( const std::string &structure, builtin_operation operation, slist ins = {}, slist outs = {} ) :
-            call( b_call{ builtin_structure::function, operation, structure } ),
+        insn( const std::string &structure, b_op operation, slist ins = {}, slist outs = {} ) :
+            call( b_call{ b_strct::function, operation, structure } ),
             in( ins ), out( outs ) {}
 
         template< typename... Stacks >

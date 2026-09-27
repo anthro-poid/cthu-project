@@ -13,11 +13,11 @@ namespace llvm2ct
 {
     unsigned integer_width( llvm::Type *type );
     unsigned integer_width( llvm::Value *value );
-    cthu::builtin_structure type_to_structure( llvm::Type *type );
+    cthu::b_strct type_to_structure( llvm::Type *type );
     std::string type_name( llvm::Type *type );
-    cthu::builtin_structure arithmetic_structure( bool is_unsigned, unsigned width );
+    cthu::b_strct arithmetic_structure( bool is_unsigned, unsigned width );
     std::string arithmetic_structure_name( bool is_unsigned, unsigned width );
-    cthu::builtin_structure arithmetic_structure( llvm::Value *value );
+    cthu::b_strct arithmetic_structure( llvm::Value *value );
     std::string value_structure_name( llvm::Value *value );
     std::string function_structure_name( llvm::ArrayRef< llvm::Type * > inputs,
                                          llvm::Type *output );

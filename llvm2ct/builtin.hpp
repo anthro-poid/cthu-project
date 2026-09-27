@@ -77,12 +77,12 @@ namespace cthu
 
 #define CTHU_ENUM_VALUE( r, data, value ) BOOST_PP_TUPLE_ELEM( 2, 0, value ),
 
-    enum struct builtin_structure
+    enum struct b_strct
     {
         BOOST_PP_SEQ_FOR_EACH( CTHU_ENUM_VALUE, _, CTHU_BUILTIN_STRUCTURES )
     };
 
-    enum struct builtin_operation
+    enum struct b_op
     {
         BOOST_PP_SEQ_FOR_EACH( CTHU_ENUM_VALUE, _, CTHU_BUILTIN_OPERATIONS )
     };
@@ -93,23 +93,21 @@ namespace cthu
     case type::BOOST_PP_TUPLE_ELEM( 2, 0, value ): \
         return BOOST_PP_TUPLE_ELEM( 2, 1, value );
 
-    constexpr std::string_view builtin_structure_name( builtin_structure structure )
+    constexpr std::string_view builtin_structure_name( b_strct structure )
     {
         switch ( structure )
         {
-            BOOST_PP_SEQ_FOR_EACH( CTHU_ENUM_STRING_CASE,
-                                   builtin_structure, CTHU_BUILTIN_STRUCTURES )
+            BOOST_PP_SEQ_FOR_EACH( CTHU_ENUM_STRING_CASE, b_strct, CTHU_BUILTIN_STRUCTURES )
         }
 
         __builtin_unreachable();
     }
 
-    constexpr std::string_view builtin_operation_name( builtin_operation operation )
+    constexpr std::string_view builtin_operation_name( b_op operation )
     {
         switch ( operation )
         {
-            BOOST_PP_SEQ_FOR_EACH( CTHU_ENUM_STRING_CASE,
-                                   builtin_operation, CTHU_BUILTIN_OPERATIONS )
+            BOOST_PP_SEQ_FOR_EACH( CTHU_ENUM_STRING_CASE, b_op, CTHU_BUILTIN_OPERATIONS )
         }
 
         __builtin_unreachable();
@@ -119,5 +117,5 @@ namespace cthu
 #undef CTHU_BUILTIN_OPERATIONS
 #undef CTHU_BUILTIN_STRUCTURES
 
-    builtin_operation nibble_operation( uint8_t value );
+    b_op nibble_operation( uint8_t value );
 }

@@ -34,7 +34,7 @@ uint16_t codegen::define( llvm::Value *value )
     return stack;
 }
 
-uint16_t codegen::use( llvm::Value *value, cthu::builtin_structure structure )
+uint16_t codegen::use( llvm::Value *value, cthu::b_strct structure )
 {
     auto it = _stack_of.find( value );
     uint16_t stack;
@@ -60,7 +60,7 @@ uint16_t codegen::use( llvm::Value *value, cthu::builtin_structure structure )
         uint16_t copy_a = allocate_stack();
         uint16_t copy_b = allocate_stack();
         auto type = type_to_structure( value->getType() );
-        _current_subr->add_insn( type, cthu::builtin_operation::dup, { stack }, { copy_a, copy_b } );
+        _current_subr->add_insn( type, cthu::b_op::dup, { stack }, { copy_a, copy_b } );
         _stack_of[ value ] = copy_b;
         return copy_a;
     }
@@ -78,9 +78,7 @@ void codegen::drop_unused( llvm::Value *value )
         return;
 
     auto structure = type_to_structure( value->getType() );
-    _current_subr->add_insn( structure, cthu::builtin_operation::drop,
-                             { it->second }, {} );
-
+    _current_subr->add_insn( structure, cthu::b_op::drop, { it->second }, {} );
     _pending_frees.push_back( it->second );
     _stack_of.erase( it );
 }
@@ -97,7 +95,7 @@ void codegen::drop_remaining_values()
 }
 
 void codegen::emit_nibble( uint16_t stack, uint8_t value,
-                           cthu::builtin_structure structure )
+                           cthu::b_strct structure )
 {
     assert( value < 16 );
 
@@ -106,13 +104,13 @@ void codegen::emit_nibble( uint16_t stack, uint8_t value,
 }
 
 void codegen::append_nibble( uint16_t accumulator, uint16_t out, uint8_t value,
-                             cthu::builtin_structure structure )
+                             cthu::b_strct structure )
 {
     uint16_t shift_stack = allocate_stack();
     emit_nibble( shift_stack, 4, structure );
 
     uint16_t shifted = allocate_stack();
-    _current_subr->add_insn( structure, cthu::builtin_operation::shl,
+    _current_subr->add_insn( structure, cthu::b_op::shl,
                              { accumulator, shift_stack }, { shifted } );
 
     /* These stacks are safe to reuse after the completed shl. Do not
@@ -123,21 +121,17 @@ void codegen::append_nibble( uint16_t accumulator, uint16_t out, uint8_t value,
     uint16_t digit_stack = allocate_stack();
     emit_nibble( digit_stack, value, structure );
 
-    _current_subr->add_insn( structure, cthu::builtin_operation::bit_or,
-                             { shifted, digit_stack }, { out } );
-
+    _current_subr->add_insn( structure, cthu::b_op::bit_or, { shifted, digit_stack }, { out } );
     add_free_stacks( shifted, digit_stack );
 }
 
 void codegen::materialize_constant( uint16_t stack, llvm::ConstantInt &c,
-                                    cthu::builtin_structure structure )
+                                    cthu::b_strct structure )
 {
     if ( c.getType()->isIntegerTy( 1 ) )
     {
-        auto operation = c.isOne() ? cthu::builtin_operation::true_value
-                                   : cthu::builtin_operation::false_value;
-        _current_subr->add_insn( cthu::builtin_structure::boolean, operation,
-                                 {}, { stack } );
+        auto operation = c.isOne() ? cthu::b_op::true_value : cthu::b_op::false_value;
+        _current_subr->add_insn( cthu::b_strct::boolean, operation, {}, { stack } );
         return;
     }
 
@@ -321,8 +315,7 @@ void codegen::visitReturnInst( llvm::ReturnInst &instruction )
         {
             uint16_t moved = _next_stack ++;
             auto structure = type_to_structure( value->getType() );
-            _current_subr->add_insn( structure, cthu::builtin_operation::move,
-                                     { output }, { moved } );
+            _current_subr->add_insn( structure, cthu::b_op::move, { output }, { moved } );
             output = moved;
         }
 
@@ -390,8 +383,7 @@ cthu::subr_ref codegen::create_branch_frame( llvm::BranchInst &instruction,
 
         if ( copies == 0 )
         {
-            frame.add_insn( type_to_structure( value->getType() ),
-                            cthu::builtin_operation::drop, { stack }, {} );
+            frame.add_insn( type_to_structure( value->getType() ), cthu::b_op::drop, { stack }, {} );
             continue;
         }
 
@@ -399,8 +391,7 @@ cthu::subr_ref codegen::create_branch_frame( llvm::BranchInst &instruction,
         {
             uint16_t first = next_stack ++;
             uint16_t rest  = next_stack ++;
-            frame.add_insn( type_to_structure( value->getType() ),
-                            cthu::builtin_operation::dup, { stack }, { first, rest } );
+            frame.add_insn( type_to_structure( value->getType() ), cthu::b_op::dup, { stack }, { first, rest } );
             available[ value ].push_back( first );
             stack = rest;
         }
@@ -413,7 +404,7 @@ cthu::subr_ref codegen::create_branch_frame( llvm::BranchInst &instruction,
 
     llvm::Type *return_type = instruction.getFunction()->getReturnType();
     cthu::insn call{ function_structure_name( _block_inputs[ target ], return_type ),
-                     cthu::builtin_operation::call, { function_stack } };
+                     cthu::b_op::call, { function_stack } };
 
     for ( llvm::Value *value : target_arguments )
     {
@@ -438,12 +429,9 @@ void codegen::visitConditionalBranch( llvm::BranchInst &instruction )
 {
     llvm::BasicBlock *true_target = instruction.getSuccessor( 0 );
     llvm::BasicBlock *false_target = instruction.getSuccessor( 1 );
-    std::vector< llvm::Value * > true_arguments = edge_arguments( instruction,
-                                                                  true_target );
-    std::vector< llvm::Value * > false_arguments = edge_arguments( instruction,
-                                                                   false_target );
-    std::vector< llvm::Value * > arguments = branch_arguments( true_arguments,
-                                                               false_arguments );
+    std::vector< llvm::Value * > true_arguments = edge_arguments( instruction, true_target );
+    std::vector< llvm::Value * > false_arguments = edge_arguments( instruction, false_target );
+    std::vector< llvm::Value * > arguments = branch_arguments( true_arguments, false_arguments );
     llvm::Type *return_type = instruction.getFunction()->getReturnType();
     std::vector< llvm::Type * > types;
 
@@ -459,16 +447,14 @@ void codegen::visitConditionalBranch( llvm::BranchInst &instruction )
         ? &_symtab.get_subroutine( false_target )
         : &create_branch_frame( instruction, false_target, arguments, false_arguments );
 
-    uint16_t condition = use( instruction.getCondition(), cthu::builtin_structure::boolean );
+    uint16_t condition = use( instruction.getCondition(), cthu::b_strct::boolean );
     uint16_t true_condition = allocate_stack();
     uint16_t condition_to_negate = allocate_stack();
-    _current_subr->add_insn( cthu::builtin_structure::boolean,
-                             cthu::builtin_operation::dup, { condition },
+    _current_subr->add_insn( cthu::b_strct::boolean, cthu::b_op::dup, { condition },
                              { true_condition, condition_to_negate } );
 
     uint16_t false_condition = allocate_stack();
-    _current_subr->add_insn( cthu::builtin_structure::boolean,
-                             cthu::builtin_operation::logical_not,
+    _current_subr->add_insn( cthu::b_strct::boolean, cthu::b_op::logical_not,
                              { condition_to_negate }, { false_condition } );
 
     cthu::structure_ref structure = _symtab.get_structure( instruction.getFunction() );
@@ -479,18 +465,18 @@ void codegen::visitConditionalBranch( llvm::BranchInst &instruction )
     _current_subr->add_insn( structure, *false_subroutine, {}, { false_function } );
 
     uint16_t true_alternative = allocate_stack();
-    _current_subr->add_insn( function_structure, cthu::builtin_operation::opt,
+    _current_subr->add_insn( function_structure, cthu::b_op::opt,
                              { true_condition, true_function }, { true_alternative } );
 
     uint16_t false_alternative = allocate_stack();
-    _current_subr->add_insn( function_structure, cthu::builtin_operation::opt,
+    _current_subr->add_insn( function_structure, cthu::b_op::opt,
                              { false_condition, false_function }, { false_alternative } );
 
     uint16_t continuation = allocate_stack();
-    _current_subr->add_insn( function_structure, cthu::builtin_operation::join,
+    _current_subr->add_insn( function_structure, cthu::b_op::join,
                              { true_alternative, false_alternative }, { continuation } );
 
-    cthu::insn call{ function_structure, cthu::builtin_operation::call, { continuation } };
+    cthu::insn call{ function_structure, cthu::b_op::call, { continuation } };
 
     for ( llvm::Value *value : arguments )
         call.add_in( use( value, arithmetic_structure( value ) ) );
@@ -521,7 +507,7 @@ void codegen::visitBranchInst( llvm::BranchInst &instruction )
 
     llvm::Type *return_type = instruction.getFunction()->getReturnType();
     cthu::insn call{ function_structure_name( target_inputs, return_type ),
-                     cthu::builtin_operation::call, { function_stack } };
+                     cthu::b_op::call, { function_stack } };
 
     for ( llvm::Value *value : target_inputs )
     {
@@ -551,11 +537,10 @@ void codegen::visitCallInst( llvm::CallInst &instruction )
 
     assert( callee && !callee->isDeclaration() && "only direct calls to defined functions are supported" );
     uint16_t function_stack = allocate_stack();
-    _current_subr->add_insn( _symtab.get_structure( callee ),
-                             _symtab.get_subroutine( &callee->getEntryBlock() ),
+    _current_subr->add_insn( _symtab.get_structure( callee ), _symtab.get_subroutine( &callee->getEntryBlock() ),
                              {}, { function_stack } );
 
-    cthu::insn call{ function_structure_name( callee->getFunctionType() ), cthu::builtin_operation::call, { function_stack } };
+    cthu::insn call{ function_structure_name( callee->getFunctionType() ), cthu::b_op::call, { function_stack } };
 
     for ( llvm::Value *argument : instruction.args() )
         call.add_in( use( argument, arithmetic_structure( argument ) ) );
@@ -577,39 +562,37 @@ void codegen::visitSelectInst( llvm::SelectInst &instruction )
 
     auto structure = type_to_structure( type );
 
-    uint16_t condition  = use( instruction.getCondition(), cthu::builtin_structure::boolean );
+    uint16_t condition  = use( instruction.getCondition(), cthu::b_strct::boolean );
     uint16_t when_true  = use( instruction.getTrueValue(), arithmetic_structure( &instruction ) );
     uint16_t when_false = use( instruction.getFalseValue(), arithmetic_structure( &instruction ) );
 
     uint16_t true_condition = allocate_stack();
     uint16_t condition_to_negate = allocate_stack();
-    _current_subr->add_insn( cthu::builtin_structure::boolean,
-                             cthu::builtin_operation::dup, { condition },
+    _current_subr->add_insn( cthu::b_strct::boolean, cthu::b_op::dup, { condition },
                              { true_condition, condition_to_negate } );
 
     uint16_t false_condition = allocate_stack();
-    _current_subr->add_insn( cthu::builtin_structure::boolean,
-                             cthu::builtin_operation::logical_not,
+    _current_subr->add_insn( cthu::b_strct::boolean, cthu::b_op::logical_not,
                              { condition_to_negate }, { false_condition } );
 
     uint16_t true_result = allocate_stack();
-    _current_subr->add_insn( structure, cthu::builtin_operation::opt,
+    _current_subr->add_insn( structure, cthu::b_op::opt,
                              { true_condition, when_true }, { true_result } );
 
     uint16_t false_result = allocate_stack();
-    _current_subr->add_insn( structure, cthu::builtin_operation::opt,
+    _current_subr->add_insn( structure, cthu::b_op::opt,
                              { false_condition, when_false }, { false_result } );
 
     uint16_t out = define( &instruction );
-    _current_subr->add_insn( structure, cthu::builtin_operation::join,
+    _current_subr->add_insn( structure, cthu::b_op::join,
                              { true_result, false_result }, { out } );
 
     add_free_stacks( true_condition, condition_to_negate, false_condition, true_result, false_result );
 }
 
 void codegen::binop_insn( llvm::Instruction &instruction,
-                          cthu::builtin_structure structure,
-                          cthu::builtin_operation operation )
+                          cthu::b_strct structure,
+                          cthu::b_op operation )
 {
     /* Repeated-operand duplication (e.g. `a * a`) is handled generally by
      * use() now — it dup()s ahead of every read except the last one,
@@ -623,9 +606,9 @@ void codegen::binop_insn( llvm::Instruction &instruction,
 }
 
 void codegen::cast_insn( llvm::CastInst &instruction,
-                         cthu::builtin_structure source_structure,
-                         cthu::builtin_structure cast_structure,
-                         cthu::builtin_operation operation )
+                         cthu::b_strct source_structure,
+                         cthu::b_strct cast_structure,
+                         cthu::b_op operation )
 {
     uint16_t in = use( instruction.getOperand( 0 ), source_structure );
     uint16_t out = define( &instruction );
@@ -635,12 +618,12 @@ void codegen::cast_insn( llvm::CastInst &instruction,
 
 void codegen::bool_sext_insn( llvm::CastInst &instruction, unsigned width )
 {
-    uint16_t in = use( instruction.getOperand( 0 ), cthu::builtin_structure::boolean );
+    uint16_t in = use( instruction.getOperand( 0 ), cthu::b_strct::boolean );
     uint16_t extended = allocate_stack();
 
-    auto conversion = width == 8 ? cthu::builtin_structure::bool_8
-                                 : cthu::builtin_structure::bool_32;
-    _current_subr->add_insn( conversion, cthu::builtin_operation::ext,
+    auto conversion = width == 8 ? cthu::b_strct::bool_8
+                                 : cthu::b_strct::bool_32;
+    _current_subr->add_insn( conversion, cthu::b_op::ext,
                              { in }, { extended } );
 
     uint16_t zero = allocate_stack();
@@ -648,7 +631,7 @@ void codegen::bool_sext_insn( llvm::CastInst &instruction, unsigned width )
     emit_nibble( zero, 0, signed_structure );
 
     uint16_t out = define( &instruction );
-    _current_subr->add_insn( signed_structure, cthu::builtin_operation::sub,
+    _current_subr->add_insn( signed_structure, cthu::b_op::sub,
                              { zero, extended }, { out } );
 
     add_free_stacks( zero, extended );
@@ -661,21 +644,19 @@ void codegen::visitTruncInst( llvm::TruncInst &instruction )
     if ( target_width == 1 )
     {
         unsigned source_width = integer_width( instruction.getOperand( 0 ) );
-        auto conversion = source_width == 8 ? cthu::builtin_structure::bool_8
-                                            : cthu::builtin_structure::bool_32;
+        auto conversion = source_width == 8 ? cthu::b_strct::bool_8 : cthu::b_strct::bool_32;
         cast_insn( instruction, arithmetic_structure( instruction.getOperand( 0 ) ),
-                   conversion, cthu::builtin_operation::cut );
+                   conversion, cthu::b_op::cut );
         return;
     }
 
     assert( integer_width( instruction.getOperand( 0 ) ) == 32 );
     assert( integer_width( &instruction ) == 8 );
 
-    bool is_unsigned = arithmetic_structure( &instruction ) == cthu::builtin_structure::u8;
-    auto conversion = is_unsigned ? cthu::builtin_structure::u8_32
-                                  : cthu::builtin_structure::i8_32;
+    bool is_unsigned = arithmetic_structure( &instruction ) == cthu::b_strct::u8;
+    auto conversion = is_unsigned ? cthu::b_strct::u8_32 : cthu::b_strct::i8_32;
     cast_insn( instruction, arithmetic_structure( is_unsigned, 32 ),
-               conversion, cthu::builtin_operation::cut );
+               conversion, cthu::b_op::cut );
 }
 
 void codegen::visitSExtInst( llvm::SExtInst &instruction )
@@ -692,8 +673,8 @@ void codegen::visitSExtInst( llvm::SExtInst &instruction )
     assert( integer_width( instruction.getOperand( 0 ) ) == 8 );
     assert( integer_width( &instruction ) == 32 );
 
-    cast_insn( instruction, cthu::builtin_structure::i8,
-               cthu::builtin_structure::i8_32, cthu::builtin_operation::ext );
+    cast_insn( instruction, cthu::b_strct::i8,
+               cthu::b_strct::i8_32, cthu::b_op::ext );
 }
 
 void codegen::visitZExtInst( llvm::ZExtInst &instruction )
@@ -703,101 +684,100 @@ void codegen::visitZExtInst( llvm::ZExtInst &instruction )
     if ( source_width == 1 )
     {
         unsigned target_width = integer_width( &instruction );
-        auto conversion = target_width == 8 ? cthu::builtin_structure::bool_8
-                                            : cthu::builtin_structure::bool_32;
-        cast_insn( instruction, cthu::builtin_structure::boolean,
-                   conversion, cthu::builtin_operation::ext );
+        auto conversion = target_width == 8 ? cthu::b_strct::bool_8 : cthu::b_strct::bool_32;
+        cast_insn( instruction, cthu::b_strct::boolean,
+                   conversion, cthu::b_op::ext );
         return;
     }
 
     assert( integer_width( instruction.getOperand( 0 ) ) == 8 );
     assert( integer_width( &instruction ) == 32 );
 
-    cast_insn( instruction, cthu::builtin_structure::u8,
-               cthu::builtin_structure::u8_32, cthu::builtin_operation::ext );
+    cast_insn( instruction, cthu::b_strct::u8,
+               cthu::b_strct::u8_32, cthu::b_op::ext );
 }
 
 void codegen::visitAdd( llvm::BinaryOperator &instruction )
 {
-    binop_insn( instruction, arithmetic_structure( &instruction ), cthu::builtin_operation::add );
+    binop_insn( instruction, arithmetic_structure( &instruction ), cthu::b_op::add );
 }
 
 void codegen::visitSub( llvm::BinaryOperator &instruction )
 {
-    binop_insn( instruction, arithmetic_structure( &instruction ), cthu::builtin_operation::sub );
+    binop_insn( instruction, arithmetic_structure( &instruction ), cthu::b_op::sub );
 }
 
 void codegen::visitMul( llvm::BinaryOperator &instruction )
 {
-    binop_insn( instruction, arithmetic_structure( &instruction ), cthu::builtin_operation::mul );
+    binop_insn( instruction, arithmetic_structure( &instruction ), cthu::b_op::mul );
 }
 
 void codegen::visitUDiv( llvm::BinaryOperator &instruction )
 {
-    binop_insn( instruction, arithmetic_structure( true, integer_width( &instruction ) ), cthu::builtin_operation::div );
+    binop_insn( instruction, arithmetic_structure( true, integer_width( &instruction ) ), cthu::b_op::div );
 }
 
 void codegen::visitSDiv( llvm::BinaryOperator &instruction )
 {
-    binop_insn( instruction, arithmetic_structure( false, integer_width( &instruction ) ), cthu::builtin_operation::div );
+    binop_insn( instruction, arithmetic_structure( false, integer_width( &instruction ) ), cthu::b_op::div );
 }
 
 void codegen::visitURem( llvm::BinaryOperator &instruction )
 {
-    binop_insn( instruction, arithmetic_structure( true, integer_width( &instruction ) ), cthu::builtin_operation::rem );
+    binop_insn( instruction, arithmetic_structure( true, integer_width( &instruction ) ), cthu::b_op::rem );
 }
 
 void codegen::visitSRem( llvm::BinaryOperator &instruction )
 {
-    binop_insn( instruction, arithmetic_structure( false, integer_width( &instruction ) ), cthu::builtin_operation::rem );
+    binop_insn( instruction, arithmetic_structure( false, integer_width( &instruction ) ), cthu::b_op::rem );
 }
 
 void codegen::visitShl( llvm::BinaryOperator &instruction )
 {
-    binop_insn( instruction, arithmetic_structure( &instruction ), cthu::builtin_operation::shl );
+    binop_insn( instruction, arithmetic_structure( &instruction ), cthu::b_op::shl );
 }
 
 void codegen::visitLShr( llvm::BinaryOperator &instruction )
 {
-    binop_insn( instruction, arithmetic_structure( true, integer_width( &instruction ) ), cthu::builtin_operation::shr );
+    binop_insn( instruction, arithmetic_structure( true, integer_width( &instruction ) ), cthu::b_op::shr );
 }
 
 void codegen::visitAShr( llvm::BinaryOperator &instruction )
 {
-    binop_insn( instruction, arithmetic_structure( false, integer_width( &instruction ) ), cthu::builtin_operation::shr );
+    binop_insn( instruction, arithmetic_structure( false, integer_width( &instruction ) ), cthu::b_op::shr );
 }
 
 void codegen::visitAnd( llvm::BinaryOperator &instruction )
 {
-    binop_insn( instruction, arithmetic_structure( &instruction ), cthu::builtin_operation::bit_and );
+    binop_insn( instruction, arithmetic_structure( &instruction ), cthu::b_op::bit_and );
 }
 
 void codegen::visitOr( llvm::BinaryOperator &instruction )
 {
-    binop_insn( instruction, arithmetic_structure( &instruction ), cthu::builtin_operation::bit_or );
+    binop_insn( instruction, arithmetic_structure( &instruction ), cthu::b_op::bit_or );
 }
 
 void codegen::visitXor( llvm::BinaryOperator &instruction )
 {
-    binop_insn( instruction, arithmetic_structure( &instruction ), cthu::builtin_operation::bit_xor );
+    binop_insn( instruction, arithmetic_structure( &instruction ), cthu::b_op::bit_xor );
 }
 
 void codegen::visitICmpInst( llvm::ICmpInst &instruction )
 {
-    cthu::builtin_operation operation;
+    cthu::b_op operation;
 
     switch ( instruction.getPredicate() )
     {
-        case llvm::CmpInst::ICMP_EQ:  operation = cthu::builtin_operation::equal;         break;
-        case llvm::CmpInst::ICMP_NE:  operation = cthu::builtin_operation::not_equal;     break;
-        case llvm::CmpInst::ICMP_SGT: operation = cthu::builtin_operation::greater;       break;
-        case llvm::CmpInst::ICMP_SGE: operation = cthu::builtin_operation::greater_equal; break;
-        case llvm::CmpInst::ICMP_SLT: operation = cthu::builtin_operation::less;          break;
-        case llvm::CmpInst::ICMP_SLE: operation = cthu::builtin_operation::less_equal;    break;
-        case llvm::CmpInst::ICMP_UGT: operation = cthu::builtin_operation::greater;       break;
-        case llvm::CmpInst::ICMP_UGE: operation = cthu::builtin_operation::greater_equal; break;
-        case llvm::CmpInst::ICMP_ULT: operation = cthu::builtin_operation::less;          break;
-        case llvm::CmpInst::ICMP_ULE: operation = cthu::builtin_operation::less_equal;    break;
+        case llvm::CmpInst::ICMP_EQ:  operation = cthu::b_op::equal;         break;
+        case llvm::CmpInst::ICMP_NE:  operation = cthu::b_op::not_equal;     break;
+        case llvm::CmpInst::ICMP_SGT: operation = cthu::b_op::greater;       break;
+        case llvm::CmpInst::ICMP_SGE: operation = cthu::b_op::greater_equal; break;
+        case llvm::CmpInst::ICMP_SLT: operation = cthu::b_op::less;          break;
+        case llvm::CmpInst::ICMP_SLE: operation = cthu::b_op::less_equal;    break;
+        case llvm::CmpInst::ICMP_UGT: operation = cthu::b_op::greater;       break;
+        case llvm::CmpInst::ICMP_UGE: operation = cthu::b_op::greater_equal; break;
+        case llvm::CmpInst::ICMP_ULT: operation = cthu::b_op::less;          break;
+        case llvm::CmpInst::ICMP_ULE: operation = cthu::b_op::less_equal;    break;
         default: __builtin_unreachable();
     }
 

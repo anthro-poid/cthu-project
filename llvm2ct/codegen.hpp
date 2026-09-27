@@ -78,7 +78,7 @@ namespace llvm2ct
          * decide its own structure. Defaults to i32 for call sites with
          * no natural signedness context (e.g. visitStoreInst). */
         uint16_t use( llvm::Value *value,
-                      cthu::builtin_structure structure = cthu::builtin_structure::i32 );
+                      cthu::b_strct structure = cthu::b_strct::i32 );
         void drop_unused( llvm::Value *value );
         void drop_remaining_values();
         void commit_frees();
@@ -98,10 +98,10 @@ namespace llvm2ct
          * instruction's own (unshared) result, there's no reliable
          * per-occurrence signal to read here. */
         void materialize_constant( uint16_t stack, llvm::ConstantInt &c,
-                                   cthu::builtin_structure structure );
-        void emit_nibble( uint16_t stack, uint8_t value, cthu::builtin_structure structure );
+                                   cthu::b_strct structure );
+        void emit_nibble( uint16_t stack, uint8_t value, cthu::b_strct structure );
         void append_nibble( uint16_t accumulator, uint16_t out, uint8_t value,
-                            cthu::builtin_structure structure );
+                            cthu::b_strct structure );
 
         void compute_block_inputs( llvm::Function &function );
         std::vector< llvm::Value * > edge_arguments( llvm::BranchInst &instruction,
@@ -116,12 +116,12 @@ namespace llvm2ct
         /* Takes the base Instruction, not BinaryOperator, so this covers
          * ICmpInst (2 operands in, 1 out, same as a binary op) too. */
         void binop_insn( llvm::Instruction &instruction,
-                          cthu::builtin_structure structure,
-                          cthu::builtin_operation operation );
+                          cthu::b_strct structure,
+                          cthu::b_op operation );
         void cast_insn( llvm::CastInst &instruction,
-                        cthu::builtin_structure source_structure,
-                        cthu::builtin_structure cast_structure,
-                        cthu::builtin_operation operation );
+                        cthu::b_strct source_structure,
+                        cthu::b_strct cast_structure,
+                        cthu::b_op operation );
         void bool_sext_insn( llvm::CastInst &instruction, unsigned width );
 
         using llvm::InstVisitor< codegen >::visit;
