@@ -72,6 +72,8 @@ namespace cthu
 
     struct subr_t
     {
+        using slist = insn::slist;
+
         std::string name;
         std::vector< uint16_t > input;
         std::vector< uint16_t > output;
@@ -84,6 +86,18 @@ namespace cthu
 
         template< typename... Stacks >
         void add_out( Stacks... stacks ) { ( output.push_back( stacks ), ... ); }
+
+        template< typename T, typename U >
+        void add_insn( T &&strct, U &&op, slist ins, slist outs )
+        {
+            body.emplace_back( std::forward< T >( strct ), std::forward< U >( op ), ins, outs );
+        }
+
+        template< typename T >
+        void add_insn( T &&i )
+        {
+            body.push_back( std::forward< T >( i ) );
+        }
     };
 
     struct structure_t
