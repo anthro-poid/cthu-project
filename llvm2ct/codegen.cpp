@@ -6,6 +6,7 @@
 #include <llvm/IR/CFG.h>
 
 #include <algorithm>
+#include <cassert>
 #include <utility>
 
 namespace llvm2ct
@@ -23,6 +24,9 @@ uint16_t codegen::allocate_stack()
         _free_stacks.pop_back();
         return stack;
     }
+
+    // This is a temporary solution.
+    assert( _next_stack <= 511 && "Stack limit exceeded." );
 
     return _next_stack ++;
 }
