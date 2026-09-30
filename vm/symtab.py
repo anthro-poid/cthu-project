@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Union
 
 
 LAMBDA_BASE  = 0x100_0000
@@ -6,81 +6,11 @@ MU_BASE      = 0xdff_0000
 BUILTIN_BASE = 0xeff_0000
 
 
-class BuiltinType:
-    pass
+class Type:
 
-
-class W8( BuiltinType ):
-
-    class Bot:
-        def __init__( self ) -> None:
-            self.size = 8
-
-    class Top:
-        def __init__( self ) -> None:
-            self.size = 8
-
-    def get_bot( self ) -> Any:
-        return W8.Bot()
-
-    def get_top( self ) -> Any:
-        return W8.Top()
-
-
-class W32( BuiltinType ):
-
-    class Bot:
-        def __init__( self ) -> None:
-            self.size = 32
-
-    class Top:
-        def __init__( self ) -> None:
-            self.size = 32
-
-    def get_bot( self ) -> Any:
-        return W32.Bot()
-
-    def get_top( self ) -> Any:
-        return W32.Top()
-
-
-class Bool( BuiltinType ):
-
-    class Bot:
-        def __init__( self ) -> None:
-            pass
-
-    class Top:
-        def __init__( self ) -> None:
-            pass
-
-    def get_bot( self ) -> Any:
-        return Bool.Bot()
-
-    def get_top( self ) -> Any:
-        return Bool.Top()
-
-
-class Func( BuiltinType ):
-    pass
-
-
-class Stck( BuiltinType ):
-    pass
-
-
-class Dict( BuiltinType ):
-    pass
-
-
-NAME_TO_BUILTIN: dict[ str, BuiltinType ] = {
-    "w₈":   W8(),
-    "w₃₂":  W32(),
-    "bool": Bool(),
-    "func": Func(),
-    "stck": Stck(),
-    "dict": Dict(),
-}
+    def __init__( self, name: str, code: int ) -> None:
+        self.name = name
+        self.code = code
 
 
 class Subr:
@@ -94,7 +24,7 @@ class Subr:
         self.output: list[ int ] = []
         self.instrs: list[ int ] = []
 
-        self.stack_types: dict[ int, BuiltinType ] = {}
+        self.stack_types: dict[ int, Type ] = {}
         self.is_defined = False
 
     def get_code( self ) -> int:
@@ -150,10 +80,10 @@ class Subr:
             if sid in self.output:
                 self.stack_types[ sid ] = t
 
-    def input_types( self ) -> list[ Union[ BuiltinType, None ] ]:
+    def input_types( self ) -> list[ Union[ Type, None ] ]:
         return [ self.stack_types.get( sid ) for sid in self.input ]
 
-    def output_types( self ) -> list[ Union[ BuiltinType, None ] ]:
+    def output_types( self ) -> list[ Union[ Type, None ] ]:
         return [ self.stack_types.get( sid ) for sid in self.output ]
 
 
@@ -201,16 +131,16 @@ class Structure:
         self.subr_name_to_code:      dict[ str, int ]           = {}
         self.subr_code_to_impl_code: list[ Union[ int, None ] ] = []
 
-        self.signatures: list[ tuple[ Signature, list[ BuiltinType ] ] ] = []
+        self.signatures: list[ tuple[ Signature, list[ Type ] ] ] = []
 
     def get_code( self ) -> int:
         return self.struct_code
 
-    def add_signature( self, signature: Signature, types: list[ BuiltinType ] ) -> None:
+    def add_signature( self, signature: Signature, types: list[ Type ] ) -> None:
         self.signatures.append( ( signature, types ) )
 
     def resolve_op_types( self, name: str
-                         ) -> Union[ tuple[ list[ BuiltinType ], list[ BuiltinType ] ], None ]:
+                         ) -> Union[ tuple[ list[ Type ], list[ Type ] ], None ]:
         for signature, args in self.signatures:
             subst = dict( zip( signature.types, args ) )
 
@@ -259,9 +189,11 @@ class Structure:
 class Symtab:
 
     def __init__( self ) -> None:
+        self.type_name_to_code: dict[ str, int ]      = {}
         self.struct_name_to_code: dict[ str, int ]    = {}
         self.signature_name_to_code: dict[ str, int ] = {}
 
+        self.types:      list[ Type ]      = []
         self.structures: list[ Structure ] = []
         self.signatures: list[ Signature ] = []
 
@@ -289,11 +221,11 @@ class Symtab:
     def get_signature_by_name( self, name: str ) -> Signature:
         return self.signatures[ self.signature_name_to_code[ name ] ]
 
-    def get_type_by_name( self, name: str ) -> BuiltinType:
-        if name not in NAME_TO_BUILTIN:
+    def get_type_by_name( self, name: str ) -> Type:
+        if name not in self.type_name_to_code:
             raise RuntimeError( "Unknown type '" + name + "'." )
 
-        return NAME_TO_BUILTIN[ name ]
+        return self.types[ self.type_name_to_code[ name ] ]
 
     def get_lambda( self, code: int ) -> Subr:
         return self.lambdas[ code ]
@@ -353,11 +285,14 @@ class Symtab:
     def register_builtin( self, struct: Structure, name: str, code: int ) -> None:
         struct.register_subr( name, code )
 
-    def register_type( self, name: str ) -> BuiltinType:
-        if name not in NAME_TO_BUILTIN:
-            raise RuntimeError( "Unknown type '" + name + "'." )
+    def register_type( self, name: str ) -> Type:
+        if name in self.type_name_to_code:
+            return self.get_type_by_name( name )
 
-        return NAME_TO_BUILTIN[ name ]
+        code = len( self.types )
+        self.type_name_to_code[ name ] = code
+        self.types.append( Type( name, code ) )
+        return self.types[ -1 ]
 
     def register_signature( self, name: str ) -> Signature:
         if self.has_signature( name ):

@@ -1,8 +1,39 @@
-from symtab import BuiltinType, W8, W32, Bool, Func, Subr
+from symtab import Subr
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from interpret import Interpret
+
+
+class W8:
+
+    class Bot:
+        def __init__( self ) -> None:
+            self.size = 8
+
+    class Top:
+        def __init__( self ) -> None:
+            self.size = 8
+
+
+class W32:
+
+    class Bot:
+        def __init__( self ) -> None:
+            self.size = 32
+
+    class Top:
+        def __init__( self ) -> None:
+            self.size = 32
+
+
+class Bool:
+
+    class Bot:
+        pass
+
+    class Top:
+        pass
 
 ### Bitvector operations
 
