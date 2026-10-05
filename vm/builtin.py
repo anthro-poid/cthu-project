@@ -138,13 +138,17 @@ def bv_fork( vm: 'Interpret', params: list[ int ], size: int ) -> None:
 def bv_move( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     vm.push( params[ 1 ], vm.pop( params[ 0 ] ) )
 
-# TODO: Will be implemented in the future, but for now we will just assert False.
 def bv_push( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    assert False
+    stck  = vm.pop( params[ 0 ] )
+    value = vm.pop( params[ 1 ] )
+    stck.push( bv_norm( value, size ) )
+    vm.push( params[ 2 ], stck )
 
-# TODO: Will be implemented in the future, but for now we will just assert False.
 def bv_pop( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    assert False
+    stck = vm.pop( params[ 0 ] )
+    value = stck.pop()
+    vm.push( params[ 1 ], bv_norm( value, size ) )
+    vm.push( params[ 2 ], stck  )
 
 def bv_drop( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     vm.pop( params[ 0 ] )
@@ -330,13 +334,17 @@ def bool_fork( vm: 'Interpret', params: list[ int ] ) -> None:
 def bool_move( vm: 'Interpret', params: list[ int ] ) -> None:
     vm.push( params[ 1 ], vm.pop( params[ 0 ] ) )
 
-# TODO: Will be implemented in the future, but for now we will just assert False.
 def bool_push( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
+    stck  = vm.pop( params[ 0 ] )
+    value = vm.pop( params[ 1 ] )
+    stck.push( value )
+    vm.push( params[ 2 ], stck )
 
-# TODO: Will be implemented in the future, but for now we will just assert False.
 def bool_pop( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
+    stck = vm.pop( params[ 0 ] )
+    value = stck.pop()
+    vm.push( params[ 1 ], value )
+    vm.push( params[ 2 ], stck  )
 
 def bool_drop( vm: 'Interpret', params: list[ int ] ) -> None:
     vm.pop( params[ 0 ] )
@@ -384,13 +392,17 @@ def func_fork( vm: 'Interpret', params: list[ int ] ) -> None:
 def func_move( vm: 'Interpret', params: list[ int ] ) -> None:
     vm.push( params[ 1 ], vm.pop( params[ 0 ] ) )
 
-# TODO: Will be implemented in the future, but for now we will just assert False.
 def func_push( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
+    stck  = vm.pop( params[ 0 ] )
+    value = vm.pop( params[ 1 ] )
+    stck.push( value )
+    vm.push( params[ 2 ], stck )
 
-# TODO: Will be implemented in the future, but for now we will just assert False.
 def func_pop( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
+    stck = vm.pop( params[ 0 ] )
+    value = stck.pop()
+    vm.push( params[ 1 ], value )
+    vm.push( params[ 2 ], stck  )
 
 def func_drop( vm: 'Interpret', params: list[ int ] ) -> None:
     vm.pop( params[ 0 ] )
