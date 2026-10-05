@@ -50,6 +50,9 @@ class Bool:
 
 class Token:
 
+    def __init__( self, obj_id: int ) -> None:
+        self.obj_id = obj_id
+
     class Bot:
         pass
 
@@ -93,6 +96,13 @@ class Dict:
         self.dict[ key ] = value
 
 
+class Frame( Dict ):
+
+    def __init__( self ) -> None:
+        super().__init__()
+        self.next_obj_id = 0
+
+
 class Ref:
 
     class Bot:
@@ -101,12 +111,12 @@ class Ref:
     class Top:
         pass
 
-    def __init__( self, addr: int, off: int ) -> None:
-        self.addr = addr
-        self.off  = off
+    def __init__( self, _id: int, off: int ) -> None:
+        self.obj_id = _id
+        self.off    = off
 
     def clone( self ) -> 'Ref':
-        return Ref( self.addr, self.off )
+        return Ref( self.obj_id, self.off )
 
 
 ### Bitvector operations
@@ -560,16 +570,39 @@ def ref_pop( vm: 'Interpret', params: list[ int ] ) -> None:
     vm.push( params[ 1 ], value )
     vm.push( params[ 2 ], stck  )
 
+def ref_drop( vm: 'Interpret', params: list[ int ] ) -> None:
+    vm.pop( params[ 0 ] )
+
+def ref_dup( vm: 'Interpret', params: list[ int ] ) -> None:
+    value = vm.pop( params[ 0 ] )
+    vm.push( params[ 1 ], value )
+    vm.push( params[ 2 ], value.clone() )
+
+def ref_add( vm: 'Interpret', params: list[ int ] ) -> None:
+    ref = vm.pop( params[ 0 ] )
+    value = bv_word( vm.pop( params[ 1 ] ), 32 )
+    assert isinstance( ref, Ref )
+    vm.push( params[ 2 ], Ref( ref.addr, ref.off + value.signed() ) )
+
 ### Dict operations
 
 def dict_join( vm: 'Interpret', params: list[ int ] ) -> None:
+    dict1 = vm.pop( params[ 0 ] )
+    dict2 = vm.pop( params[ 1 ] )
+
+    if isinstance( dict1, Dict.Bot ) and isinstance( dict2, Dict.Bot ):
+        vm.push( params[ 2 ], Dict.Bot() )
+
+    if isinstance( dict1, Dict.Top ) and isinstance( dict2, Dict.Top ):
+        vm.push( params[ 2 ], Dict.Top() )
+
     assert False
 
 def dict_bot( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
+    vm.push( params[ 0 ], Dict.Bot() )
 
 def dict_top( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
+    vm.push( params[ 0 ], Dict.Top() )
 
 def dict_opt( vm: 'Interpret', params: list[ int ] ) -> None:
     assert False
@@ -578,56 +611,120 @@ def dict_fork( vm: 'Interpret', params: list[ int ] ) -> None:
     assert False
 
 def dict_move( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
+    vm.push( params[ 1 ], vm.pop( params[ 0 ] ) )
 
 def dict_push( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
+    stck  = vm.pop( params[ 0 ] )
+    value = vm.pop( params[ 1 ] )
+    stck.push( value )
+    vm.push( params[ 2 ], stck )
 
 def dict_pop( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
+    stck = vm.pop( params[ 0 ] )
+    value = stck.pop()
+    vm.push( params[ 1 ], value )
+    vm.push( params[ 2 ], stck  )
 
 def dict_drop( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
-
-### Object operations
-
-def object_make( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
-
-def object_destroy( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
-
-def object_alloca( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
-
-def object_free( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
-
-def object_load( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
-
-def object_store( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
+    vm.pop( params[ 0 ] )
 
 ### Frame operations
 
 def frame_make( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
+    vm.push( params[ 0 ], Frame() )
 
 def frame_destroy( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
+    vm.pop( params[ 0 ] )
 
 def frame_alloca( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
+    mem = vm.pop( params[ 0 ] )
+    assert isinstance( mem, Frame )
+
+    obj_id = mem.next_obj_id
+    mem.next_obj_id += 1
+    mem[ obj_id ] = Dict()
+
+    vm.push( params[ 1 ], Ref( obj_id, 0 ) )
+    vm.push( params[ 2 ], Token( obj_id ) )
+    vm.push( params[ 3 ], mem )
 
 def frame_free( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
+    ref = vm.pop( params[ 0 ] )
+    token = vm.pop( params[ 1 ] )
+    mem = vm.pop( params[ 2 ] )
 
-def frame_load( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
+    assert isinstance( ref, Ref )
+    assert isinstance( token, Token )
+    assert isinstance( mem, Frame )
+    assert ref.off == 0
+    assert ref.obj_id == token.obj_id
+    assert ref.obj_id in mem.dict
 
-def frame_store( vm: 'Interpret', params: list[ int ] ) -> None:
-    assert False
+    mem.dict.pop( ref.obj_id )
+
+    vm.push( params[ 3 ], mem )
+
+### Memory access operations
+
+def w8_load( vm: 'Interpret', params: list[ int ] ) -> None:
+    ref = vm.pop( params[ 0 ] )
+    mem = vm.pop( params[ 1 ] )
+
+    obj_id, off = ref.obj_id, ref.off
+    vm.push( params[ 2 ], mem[ obj_id ][ off ] )
+    vm.push( params[ 3 ], mem )
+
+def w8_store( vm: 'Interpret', params: list[ int ] ) -> None:
+    ref = vm.pop( params[ 0 ] )
+    val = vm.pop( params[ 1 ] )
+    mem = vm.pop( params[ 2 ] )
+
+    obj_id, off = ref.obj_id, ref.off
+    mem[ obj_id ][ off ] = val
+    vm.push( params[ 3 ], mem )
+
+def w32_load( vm: 'Interpret', params: list[ int ] ) -> None:
+    ref = vm.pop( params[ 0 ] )
+    mem = vm.pop( params[ 1 ] )
+
+    obj_id, off = ref.obj_id, ref.off
+    value = 0
+
+    for i in range( 4 ):
+        byte = bv_word( mem[ obj_id ][ off + i ], 8 )
+        value |= byte.value << ( 8 * i )
+
+    vm.push( params[ 2 ], Word( value, 32 ) )
+    vm.push( params[ 3 ], mem )
+
+def w32_store( vm: 'Interpret', params: list[ int ] ) -> None:
+    ref = vm.pop( params[ 0 ] )
+    val = bv_word( vm.pop( params[ 1 ] ), 32 )
+    mem = vm.pop( params[ 2 ] )
+
+    obj_id, off = ref.obj_id, ref.off
+
+    for i in range( 4 ):
+        mem[ obj_id ][ off + i ] = Word( val.value >> ( 8 * i ), 8 )
+
+    vm.push( params[ 3 ], mem )
+
+def bool_load( vm: 'Interpret', params: list[ int ] ) -> None:
+    ref = vm.pop( params[ 0 ] )
+    mem = vm.pop( params[ 1 ] )
+
+    obj_id, off = ref.obj_id, ref.off
+    vm.push( params[ 2 ], bool( mem[ obj_id ][ off ] ) )
+    vm.push( params[ 3 ], mem )
+
+def bool_store( vm: 'Interpret', params: list[ int ] ) -> None:
+    ref = vm.pop( params[ 0 ] )
+    val = vm.pop( params[ 1 ] )
+    mem = vm.pop( params[ 2 ] )
+
+    obj_id, off = ref.obj_id, ref.off
+    mem[ obj_id ][ off ] = Word( bool( val ), 8 )
+    vm.push( params[ 3 ], mem )
 
 ### Entry point
 
@@ -799,28 +896,29 @@ name_to_code: dict[ str, int ] = {
     "builtin_dict_pop":      0xeff_0094,
     "builtin_dict_drop":     0xeff_0095,
 
-    "builtin_object_make":    0xeff_0096,
-    "builtin_object_destroy": 0xeff_0097,
-    "builtin_object_alloca":  0xeff_0098,
-    "builtin_object_free":    0xeff_0099,
-    "builtin_object_load":    0xeff_009a,
-    "builtin_object_store":   0xeff_009b,
+    "builtin_frame_make":    0xeff_0096,
+    "builtin_frame_destroy": 0xeff_0097,
+    "builtin_frame_alloca":  0xeff_0098,
+    "builtin_frame_free":    0xeff_0099,
 
-    "builtin_frame_make":    0xeff_009c,
-    "builtin_frame_destroy": 0xeff_009d,
-    "builtin_frame_alloca":  0xeff_009e,
-    "builtin_frame_free":    0xeff_009f,
-    "builtin_frame_load":    0xeff_00a0,
-    "builtin_frame_store":   0xeff_00a1,
+    "builtin_w8_load":       0xeff_009a,
+    "builtin_w8_store":      0xeff_009b,
+    "builtin_w32_load":      0xeff_009c,
+    "builtin_w32_store":     0xeff_009d,
+    "builtin_bool_load":     0xeff_009e,
+    "builtin_bool_store":    0xeff_009f,
 
-    "builtin_ref_join":      0xeff_00a2,
-    "builtin_ref_bot":       0xeff_00a3,
-    "builtin_ref_top":       0xeff_00a4,
-    "builtin_ref_opt":       0xeff_00a5,
-    "builtin_ref_fork":      0xeff_00a6,
-    "builtin_ref_move":      0xeff_00a7,
-    "builtin_ref_push":      0xeff_00a8,
-    "builtin_ref_pop":       0xeff_00a9
+    "builtin_ref_join":      0xeff_00a0,
+    "builtin_ref_bot":       0xeff_00a1,
+    "builtin_ref_top":       0xeff_00a2,
+    "builtin_ref_opt":       0xeff_00a3,
+    "builtin_ref_fork":      0xeff_00a4,
+    "builtin_ref_move":      0xeff_00a5,
+    "builtin_ref_push":      0xeff_00a6,
+    "builtin_ref_pop":       0xeff_00a7,
+    "builtin_ref_drop":      0xeff_00a8,
+    "builtin_ref_dup":       0xeff_00a9,
+    "builtin_ref_add":       0xeff_00aa
 }
 
 code_to_subr: dict[ int, Any ] = {
@@ -987,26 +1085,27 @@ code_to_subr: dict[ int, Any ] = {
     0xeff_0094: dict_pop,
     0xeff_0095: dict_drop,
 
-    0xeff_0096: object_make,
-    0xeff_0097: object_destroy,
-    0xeff_0098: object_alloca,
-    0xeff_0099: object_free,
-    0xeff_009a: object_load,
-    0xeff_009b: object_store,
+    0xeff_0096: frame_make,
+    0xeff_0097: frame_destroy,
+    0xeff_0098: frame_alloca,
+    0xeff_0099: frame_free,
 
-    0xeff_009c: frame_make,
-    0xeff_009d: frame_destroy,
-    0xeff_009e: frame_alloca,
-    0xeff_009f: frame_free,
-    0xeff_00a0: frame_load,
-    0xeff_00a1: frame_store,
+    0xeff_009a: w8_load,
+    0xeff_009b: w8_store,
+    0xeff_009c: w32_load,
+    0xeff_009d: w32_store,
+    0xeff_009e: bool_load,
+    0xeff_009f: bool_store,
 
-    0xeff_00a2: ref_join,
-    0xeff_00a3: ref_bot,
-    0xeff_00a4: ref_top,
-    0xeff_00a5: ref_opt,
-    0xeff_00a6: ref_fork,
-    0xeff_00a7: ref_move,
-    0xeff_00a8: ref_push,
-    0xeff_00a9: ref_pop
+    0xeff_00a0: ref_join,
+    0xeff_00a1: ref_bot,
+    0xeff_00a2: ref_top,
+    0xeff_00a3: ref_opt,
+    0xeff_00a4: ref_fork,
+    0xeff_00a5: ref_move,
+    0xeff_00a6: ref_push,
+    0xeff_00a7: ref_pop,
+    0xeff_00a8: ref_drop,
+    0xeff_00a9: ref_dup,
+    0xeff_00aa: ref_add
 }

@@ -15,6 +15,12 @@ structure w₈ : simple[ w₈, stck, bool ]
     dup  = builtin_bv8dup  ; simple
 )
 
+structure mem₈ : memory_access[ ref, w₈, frame_repr ]
+(
+    load  = builtin_w8_load
+    store = builtin_w8_store
+)
+
 structure w₃₂ : simple[ w₃₂, stck, bool ]
 (
     join = builtin_bv32join ; lattice
@@ -30,6 +36,12 @@ structure w₃₂ : simple[ w₃₂, stck, bool ]
     drop = builtin_bv32drop ; affine
 
     dup  = builtin_bv32dup  ; simple
+)
+
+structure mem₃₂ : memory_access[ ref, w₃₂, frame_repr ]
+(
+    load  = builtin_w32_load
+    store = builtin_w32_store
 )
 
 structure bool : logical[ bool, stck ]
@@ -55,6 +67,12 @@ structure bool : logical[ bool, stck ]
     or     = builtin_bool_or     ; logical
     xor    = builtin_bool_xor    ; logical
     assert = builtin_bool_assert ; logical
+)
+
+structure mem_bool : memory_access[ ref, bool, frame_repr ]
+(
+    load  = builtin_bool_load
+    store = builtin_bool_store
 )
 
 structure i₃₂ : arithmetic[ w₃₂, bool ], bitwise[ w₃₂ ]
@@ -267,7 +285,8 @@ structure token : linear[ token, stck, bool ]
     pop  = builtin_token_pop  ; linear
 )
 
-structure ref : linear[ ref, stck, bool ]
+structure ref : simple[ ref, stck, bool ],
+                pointer[ ref, w₃₂ ]
 (
     join = builtin_ref_join ; lattice
     bot  = builtin_ref_bot  ; lattice
@@ -277,27 +296,9 @@ structure ref : linear[ ref, stck, bool ]
     move = builtin_ref_move ; linear
     push = builtin_ref_push ; linear
     pop  = builtin_ref_pop  ; linear
-)
-
-structure object : affine[ obj_repr, stck, bool ],
-                   memory[ ref, token, stck, obj_repr ]
-(
-    join = builtin_dict_join ; lattice
-    bot  = builtin_dict_bot  ; lattice
-    top  = builtin_dict_top  ; lattice
-    opt  = builtin_dict_opt  ; lattice
-    fork = builtin_dict_fork ; linear
-    move = builtin_dict_move ; linear
-    push = builtin_dict_push ; linear
-    pop  = builtin_dict_pop  ; linear
-    drop = builtin_dict_drop ; affine
-
-    make    = builtin_object_make;    memory
-    destroy = builtin_object_destroy; memory
-    alloca  = builtin_object_alloca;  memory
-    free    = builtin_object_free;    memory
-    load    = builtin_object_load;    memory
-    store   = builtin_object_store;   memory
+    drop = builtin_ref_drop ; affine
+    dup  = builtin_ref_dup  ; simple
+    add  = builtin_ref_add  ; pointer
 )
 
 structure frame : affine[ frame_repr, stck, bool ],
@@ -317,6 +318,4 @@ structure frame : affine[ frame_repr, stck, bool ],
     destroy = builtin_frame_destroy ; memory
     alloca  = builtin_frame_alloca  ; memory
     free    = builtin_frame_free    ; memory
-    load    = builtin_frame_load    ; memory
-    store   = builtin_frame_store   ; memory
 )

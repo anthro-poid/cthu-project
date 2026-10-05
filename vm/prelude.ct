@@ -105,13 +105,22 @@ signature callable[ F, B ]
     select ∷ B × F × F → F
 )
 
+signature pointer[ R, N ]
+(
+    add ∷ R × N → R
+)
+
+signature memory_access[ R, V, M ]
+(
+    load   ∷ R × M → V × M
+    store  ∷ R × V × M → M
+)
+
 signature memory[ R, T, V, M ]
 (
-    make ∷ ∅ → M
+    make    ∷ ∅ → M
     destroy ∷ M → ∅
 
     alloca ∷ M → R × T × M
-    free ∷ R × T × M → M
-    load ∷ R × M → V × M
-    store ∷ R × V × M →  M
+    free   ∷ R × T × M → M
 )
