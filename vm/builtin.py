@@ -7,6 +7,20 @@ if TYPE_CHECKING:
 
 class Word:
 
+    def __init__( self, value: int, size: int ) -> None:
+        self.size  = size
+        self.value = value & ( ( 1 << size ) - 1 )
+
+    def signed( self ) -> int:
+        sign = 1 << ( self.size - 1 )
+        return self.value - ( 1 << self.size ) if self.value & sign else self.value
+
+    def __int__( self ) -> int:
+        return self.value
+
+    def __str__( self ) -> str:
+        return str( self.value )
+
     class Bot:
         def __init__( self, size: int ) -> None:
             self.size = size
@@ -88,31 +102,33 @@ class Ref:
 
 ### Bitvector operations
 
-def bv_norm( n: int, exp: int ) -> int:
-    mask: int = 2 ** exp - 1
-    return n & mask 
+def bv_value( value: Any, size: int ) -> Any:
+    assert isinstance( value, ( Word, Word.Bot, Word.Top ) )
+    assert value.size == size
+    return value
 
-def bv_signed( n: int, size: int ) -> int:
-    m: int = 2 ** ( size - 1 )
-    return n if -m <= n < m else ( n % m ) - ( n & m )
+def bv_word( value: Any, size: int ) -> Word:
+    bv_value( value, size )
+    assert isinstance( value, Word )
+    return value
 
 def bv_prepare_binary( vm: 'Interpret', params: list[ int ],
-                       size: int ) -> tuple[ Any, Any ]:
-    return ( bv_norm( vm.pop( params[ 0 ] ), size ),
-             bv_norm( vm.pop( params[ 1 ] ), size ) )
+                       size: int ) -> tuple[ Word, Word ]:
+    return ( bv_word( vm.pop( params[ 0 ] ), size ),
+             bv_word( vm.pop( params[ 1 ] ), size ) )
 
 def bv_join( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    a = vm.pop( params[ 0 ] )
-    b = vm.pop( params[ 1 ] )
+    a = bv_value( vm.pop( params[ 0 ] ), size )
+    b = bv_value( vm.pop( params[ 1 ] ), size )
 
     if isinstance( a, Word.Top ) or isinstance( b, Word.Top ) or \
-       ( isinstance( a, int ) and isinstance( b, int ) ):
+       ( isinstance( a, Word ) and isinstance( b, Word ) ):
         vm.push( params[ 2 ], Word.Top( size ) )
 
     elif isinstance( a, Word.Bot ) and isinstance( b, Word.Bot ):
         vm.push( params[ 2 ], Word.Bot( size ) )
 
-    elif isinstance( a, int ):
+    elif isinstance( a, Word ):
         vm.push( params[ 2 ], a )
 
     else:
@@ -126,168 +142,168 @@ def bv_top( vm: 'Interpret', params: list[ int ], size: int ) -> None:
 
 def bv_opt( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     cmp_val = vm.pop( params[ 0 ] )
-    arg = vm.pop( params[ 1 ] )
+    arg = bv_value( vm.pop( params[ 1 ] ), size )
     assert isinstance( cmp_val, bool )
     vm.push( params[ 2 ], arg if cmp_val else Word.Bot( size ) )
 
 def bv_fork( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    value = vm.pop( params[ 0 ] )
+    value = bv_value( vm.pop( params[ 0 ] ), size )
     vm.push( params[ 1 ], value )
     vm.push( params[ 2 ], value )
 
 def bv_move( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    vm.push( params[ 1 ], vm.pop( params[ 0 ] ) )
+    value = bv_value( vm.pop( params[ 0 ] ), size )
+    vm.push( params[ 1 ], value )
 
 def bv_push( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     stck  = vm.pop( params[ 0 ] )
-    value = vm.pop( params[ 1 ] )
-    stck.push( bv_norm( value, size ) )
+    value = bv_value( vm.pop( params[ 1 ] ), size )
+    stck.push( value )
     vm.push( params[ 2 ], stck )
 
 def bv_pop( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     stck = vm.pop( params[ 0 ] )
-    value = stck.pop()
-    vm.push( params[ 1 ], bv_norm( value, size ) )
+    value = bv_value( stck.pop(), size )
+    vm.push( params[ 1 ], value )
     vm.push( params[ 2 ], stck  )
 
 def bv_drop( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    vm.pop( params[ 0 ] )
+    bv_value( vm.pop( params[ 0 ] ), size )
 
 def bv_dup( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    value = vm.pop( params[ 0 ] )
+    value = bv_value( vm.pop( params[ 0 ] ), size )
     vm.push( params[ 1 ], value )
     vm.push( params[ 2 ], value )
 
 def bv_add( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], bv_norm( l + r, size ) )
+    vm.push( params[ 2 ], Word( l.value + r.value, size ) )
 
 def bv_sub( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], bv_norm( l - r, size ) )
+    vm.push( params[ 2 ], Word( l.value - r.value, size ) )
 
 def bv_mul( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], bv_norm( l * r, size ) )
+    vm.push( params[ 2 ], Word( l.value * r.value, size ) )
 
 def bv_sdiv( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    l, r = bv_signed( l, size ), bv_signed( r, size )
+    lhs, rhs = l.signed(), r.signed()
 
     vm.push( params[ 2 ],
-        bv_norm( l // r + ( 0 if l % r == 0 else 1 ) if ( l // r ) < 0 else l // r, size ) )
+        Word( lhs // rhs + ( 0 if lhs % rhs == 0 else 1 )
+              if ( lhs // rhs ) < 0 else lhs // rhs, size ) )
 
 def bv_srem( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    l, r = bv_signed( l, size ), bv_signed( r, size )
+    lhs, rhs = l.signed(), r.signed()
 
     vm.push( params[ 2 ],
-        bv_norm( -r + ( l % r ) if max( l, r ) >= 0 and min( l, r ) < 0 else ( l % r ), size ) )
+        Word( -rhs + ( lhs % rhs )
+              if max( lhs, rhs ) >= 0 and min( lhs, rhs ) < 0
+              else ( lhs % rhs ), size ) )
 
 def bv_udiv( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], bv_norm( l // r, size ) )
+    vm.push( params[ 2 ], Word( l.value // r.value, size ) )
 
 def bv_urem( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], bv_norm( l % r, size ) )
+    vm.push( params[ 2 ], Word( l.value % r.value, size ) )
 
 def bv_eq( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], l == r )
+    vm.push( params[ 2 ], l.value == r.value )
 
 def bv_ne( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], l != r )
+    vm.push( params[ 2 ], l.value != r.value )
 
 def bv_slt( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    l, r = bv_signed( l, size ), bv_signed( r, size )
-    vm.push( params[ 2 ], l < r )
+    vm.push( params[ 2 ], l.signed() < r.signed() )
 
 def bv_sle( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    l, r = bv_signed( l, size ), bv_signed( r, size )
-    vm.push( params[ 2 ], l <= r )
+    vm.push( params[ 2 ], l.signed() <= r.signed() )
 
 def bv_sge( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    l, r = bv_signed( l, size ), bv_signed( r, size )
-    vm.push( params[ 2 ], l >= r )
+    vm.push( params[ 2 ], l.signed() >= r.signed() )
 
 def bv_sgt( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    l, r = bv_signed( l, size ), bv_signed( r, size )
-    vm.push( params[ 2 ], l > r )
+    vm.push( params[ 2 ], l.signed() > r.signed() )
 
 def bv_ult( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], l < r )
+    vm.push( params[ 2 ], l.value < r.value )
 
 def bv_ule( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], l <= r )
+    vm.push( params[ 2 ], l.value <= r.value )
 
 def bv_uge( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], l >= r )
+    vm.push( params[ 2 ], l.value >= r.value )
 
 def bv_ugt( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], l > r )
+    vm.push( params[ 2 ], l.value > r.value )
 
 def bv_shl( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], bv_norm( l << r, size ) )
+    vm.push( params[ 2 ], Word( l.value << r.value, size ) )
 
 def bv_ashr( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], bv_norm( bv_signed( l, size ) >> r, size ) )
+    vm.push( params[ 2 ], Word( l.signed() >> r.value, size ) )
 
 def bv_lshr( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], bv_norm( l >> r, size ) )
+    vm.push( params[ 2 ], Word( l.value >> r.value, size ) )
 
 def bv_and( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], bv_norm( l & r, size ) )
+    vm.push( params[ 2 ], Word( l.value & r.value, size ) )
 
 def bv_or( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], bv_norm( l | r, size ) )
+    vm.push( params[ 2 ], Word( l.value | r.value, size ) )
 
 def bv_xor( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], bv_norm( l ^ r, size ) )
+    vm.push( params[ 2 ], Word( l.value ^ r.value, size ) )
 
 def bv_neg( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    vm.push( params[ 1 ], bv_norm( ~vm.pop( params[ 0 ] ), size ) )
+    value = bv_word( vm.pop( params[ 0 ] ), size )
+    vm.push( params[ 1 ], Word( ~value.value, size ) )
 
 def bv_cons( vm: 'Interpret', params: list[ int ], size: int,
              number: int ) -> None:
-    vm.push( params[ 0 ], bv_norm( number, size ) )
+    vm.push( params[ 0 ], Word( number, size ) )
 
 ### Conversion operations
 
 def cut( vm: 'Interpret', params: list[ int ], t: int ) -> None:
-    vm.push( params[ 1 ], bv_norm( vm.pop( params[ 0 ] ), t ) )
+    value = vm.pop( params[ 0 ] )
+    assert isinstance( value, Word )
+    vm.push( params[ 1 ], Word( value.value, t ) )
 
 def ext( vm: 'Interpret', params: list[ int ], f: int, t: int,
          sign: bool ) -> None:
-    num = bv_norm( vm.pop( params[ 0 ] ), f )
-
-    if sign and num & ( 1 << ( f - 1 ) ):
-        num |= ( ( 1 << ( t - f ) ) - 1 ) << f
-
-    vm.push( params[ 1 ], bv_norm( num, t ) )
+    value = bv_word( vm.pop( params[ 0 ] ), f )
+    vm.push( params[ 1 ], Word( value.signed() if sign else value.value, t ) )
 
 def bool_cut( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    vm.push( params[ 1 ], bool( bv_norm( vm.pop( params[ 0 ] ), size ) & 1 ) )
+    value = bv_word( vm.pop( params[ 0 ] ), size )
+    vm.push( params[ 1 ], bool( value.value & 1 ) )
 
 def bool_ext( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     value = vm.pop( params[ 0 ] )
     assert isinstance( value, bool )
-    vm.push( params[ 1 ], int( value ) )
+    vm.push( params[ 1 ], Word( int( value ), size ) )
 
 ### Bool operations
 
@@ -920,7 +936,7 @@ code_to_subr: dict[ int, Any ] = {
     0xeff_0071: lambda vm, p: bv_ugt(  vm, p, 8 ),
     0xeff_0072: lambda vm, p: bv_lshr( vm, p, 8 ),
 
-    0xeff_0073: lambda vm, p: cut( vm, p, 32 ),
+    0xeff_0073: lambda vm, p: cut( vm, p, 8 ),
     0xeff_0074: lambda vm, p: ext( vm, p, 8, 32, True ),
     0xeff_0075: lambda vm, p: ext( vm, p, 8, 32, False ),
 
