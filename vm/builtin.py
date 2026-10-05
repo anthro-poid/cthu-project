@@ -429,6 +429,169 @@ def lambda_select( vm: 'Interpret', params: list[ int ] ) -> None:
     bot = vm.pop( params[ 2 ] )
     vm.push( params[ 3 ], func if cmp_val else bot )
 
+### Token operations
+
+def token_join( vm: 'Interpret', params: list[ int ] ) -> None:
+    a = vm.pop( params[ 0 ] )
+    b = vm.pop( params[ 1 ] )
+
+    if isinstance( a, Token.Top ) or isinstance( b, Token.Top ):
+        vm.push( params[ 2 ], Token.Top() )
+    elif isinstance( a, Token.Bot ) and isinstance( b, Token.Bot ):
+        vm.push( params[ 2 ], Token.Bot() )
+    elif isinstance( a, Token ):
+        vm.push( params[ 2 ], a )
+    else:
+        vm.push( params[ 2 ], b )
+
+def token_bot( vm: 'Interpret', params: list[ int ] ) -> None:
+    vm.push( params[ 0 ], Token.Bot() )
+
+def token_top( vm: 'Interpret', params: list[ int ] ) -> None:
+    vm.push( params[ 0 ], Token.Top() )
+
+def token_opt( vm: 'Interpret', params: list[ int ] ) -> None:
+    cmp_val = vm.pop( params[ 0 ] )
+    arg = vm.pop( params[ 1 ] )
+    assert isinstance( cmp_val, bool )
+    vm.push( params[ 2 ], arg if cmp_val else Token.Bot() )
+
+def token_fork( vm: 'Interpret', params: list[ int ] ) -> None:
+    value = vm.pop( params[ 0 ] )
+    vm.push( params[ 1 ], value )
+    vm.push( params[ 2 ], value )
+
+def token_move( vm: 'Interpret', params: list[ int ] ) -> None:
+    vm.push( params[ 1 ], vm.pop( params[ 0 ] ) )
+
+def token_push( vm: 'Interpret', params: list[ int ] ) -> None:
+    stck  = vm.pop( params[ 0 ] )
+    value = vm.pop( params[ 1 ] )
+    stck.push( value )
+    vm.push( params[ 2 ], stck )
+
+def token_pop( vm: 'Interpret', params: list[ int ] ) -> None:
+    stck = vm.pop( params[ 0 ] )
+    value = stck.pop()
+    vm.push( params[ 1 ], value )
+    vm.push( params[ 2 ], stck  )
+
+### Ref operations
+
+def ref_join( vm: 'Interpret', params: list[ int ] ) -> None:
+    a = vm.pop( params[ 0 ] )
+    b = vm.pop( params[ 1 ] )
+
+    if isinstance( a, Ref.Top ) or isinstance( b, Ref.Top ):
+        vm.push( params[ 2 ], Ref.Top() )
+    elif isinstance( a, Ref.Bot ) and isinstance( b, Ref.Bot ):
+        vm.push( params[ 2 ], Ref.Bot() )
+    elif isinstance( a, Ref ):
+        vm.push( params[ 2 ], a )
+    else:
+        vm.push( params[ 2 ], b )
+
+def ref_bot( vm: 'Interpret', params: list[ int ] ) -> None:
+    vm.push( params[ 0 ], Ref.Bot() )
+
+def ref_top( vm: 'Interpret', params: list[ int ] ) -> None:
+    vm.push( params[ 0 ], Ref.Top() )
+
+def ref_opt( vm: 'Interpret', params: list[ int ] ) -> None:
+    cmp_val = vm.pop( params[ 0 ] )
+    arg = vm.pop( params[ 1 ] )
+    assert isinstance( cmp_val, bool )
+    vm.push( params[ 2 ], arg if cmp_val else Ref.Bot() )
+
+def ref_fork( vm: 'Interpret', params: list[ int ] ) -> None:
+    value = vm.pop( params[ 0 ] )
+    vm.push( params[ 1 ], value )
+    vm.push( params[ 2 ], value.clone() )
+
+def ref_move( vm: 'Interpret', params: list[ int ] ) -> None:
+    vm.push( params[ 1 ], vm.pop( params[ 0 ] ) )
+
+def ref_push( vm: 'Interpret', params: list[ int ] ) -> None:
+    stck  = vm.pop( params[ 0 ] )
+    value = vm.pop( params[ 1 ] )
+    stck.push( value )
+    vm.push( params[ 2 ], stck )
+
+def ref_pop( vm: 'Interpret', params: list[ int ] ) -> None:
+    stck = vm.pop( params[ 0 ] )
+    value = stck.pop()
+    vm.push( params[ 1 ], value )
+    vm.push( params[ 2 ], stck  )
+
+### Dict operations
+
+def dict_join( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+def dict_bot( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+def dict_top( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+def dict_opt( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+def dict_fork( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+def dict_move( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+def dict_push( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+def dict_pop( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+def dict_drop( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+### Object operations
+
+def object_make( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+def object_destroy( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+def object_alloca( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+def object_free( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+def object_load( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+def object_store( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+### Frame operations
+
+def frame_make( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+def frame_destroy( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+def frame_alloca( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+def frame_free( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+def frame_load( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
+def frame_store( vm: 'Interpret', params: list[ int ] ) -> None:
+    assert False
+
 ### Entry point
 
 def exec_op( vm: 'Interpret', code: int, params: list[ int ] ) -> None:
@@ -766,5 +929,47 @@ code_to_subr: dict[ int, Any ] = {
     0xeff_0082: bool_false,
 
     0xeff_0083: lambda_bind,
-    0xeff_0084: lambda_select
+    0xeff_0084: lambda_select,
+
+    0xeff_0085: token_join,
+    0xeff_0086: token_bot,
+    0xeff_0087: token_top,
+    0xeff_0088: token_opt,
+    0xeff_0089: token_fork,
+    0xeff_008a: token_move,
+    0xeff_008b: token_push,
+    0xeff_008c: token_pop,
+
+    0xeff_008d: dict_join,
+    0xeff_008e: dict_bot,
+    0xeff_008f: dict_top,
+    0xeff_0090: dict_opt,
+    0xeff_0091: dict_fork,
+    0xeff_0092: dict_move,
+    0xeff_0093: dict_push,
+    0xeff_0094: dict_pop,
+    0xeff_0095: dict_drop,
+
+    0xeff_0096: object_make,
+    0xeff_0097: object_destroy,
+    0xeff_0098: object_alloca,
+    0xeff_0099: object_free,
+    0xeff_009a: object_load,
+    0xeff_009b: object_store,
+
+    0xeff_009c: frame_make,
+    0xeff_009d: frame_destroy,
+    0xeff_009e: frame_alloca,
+    0xeff_009f: frame_free,
+    0xeff_00a0: frame_load,
+    0xeff_00a1: frame_store,
+
+    0xeff_00a2: ref_join,
+    0xeff_00a3: ref_bot,
+    0xeff_00a4: ref_top,
+    0xeff_00a5: ref_opt,
+    0xeff_00a6: ref_fork,
+    0xeff_00a7: ref_move,
+    0xeff_00a8: ref_push,
+    0xeff_00a9: ref_pop
 }
