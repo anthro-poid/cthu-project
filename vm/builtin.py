@@ -5,26 +5,15 @@ if TYPE_CHECKING:
     from interpret import Interpret
 
 
-class W8:
+class Word:
 
     class Bot:
-        def __init__( self ) -> None:
-            self.size = 8
+        def __init__( self, size: int ) -> None:
+            self.size = size
 
     class Top:
-        def __init__( self ) -> None:
-            self.size = 8
-
-
-class W32:
-
-    class Bot:
-        def __init__( self ) -> None:
-            self.size = 32
-
-    class Top:
-        def __init__( self ) -> None:
-            self.size = 32
+        def __init__( self, size: int ) -> None:
+            self.size = size
 
 
 class Bool:
@@ -34,6 +23,68 @@ class Bool:
 
     class Top:
         pass
+
+
+class Token:
+
+    class Bot:
+        pass
+
+    class Top:
+        pass
+
+
+class Stck:
+
+    class Bot:
+        pass
+
+    class Top:
+        pass
+
+    def __init__( self ) -> None:
+        self.stack: list[ Any ] = []
+
+    def push( self, value: Any ) -> None:
+        self.stack.append( value )
+
+    def pop( self ) -> Any:
+        return self.stack.pop()
+
+
+class Dict:
+
+    class Bot:
+        pass
+
+    class Top:
+        pass
+
+    def __init__( self ) -> None:
+        self.dict: dict[ Any, Any ] = {}
+
+    def __getitem__( self, key: Any ) -> Any:
+        return self.dict[ key ]
+
+    def __setitem__( self, key: Any, value: Any ) -> None:
+        self.dict[ key ] = value
+
+
+class Ref:
+
+    class Bot:
+        pass
+
+    class Top:
+        pass
+
+    def __init__( self, addr: int, off: int ) -> None:
+        self.addr = addr
+        self.off  = off
+
+    def clone( self ) -> 'Ref':
+        return Ref( self.addr, self.off )
+
 
 ### Bitvector operations
 
@@ -50,16 +101,16 @@ def bv_prepare_binary( vm: 'Interpret', params: list[ int ],
     return ( bv_norm( vm.pop( params[ 0 ] ), size ),
              bv_norm( vm.pop( params[ 1 ] ), size ) )
 
-def bv_join( vm: 'Interpret', params: list[ int ], t: type ) -> None:
+def bv_join( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     a = vm.pop( params[ 0 ] )
     b = vm.pop( params[ 1 ] )
 
-    if isinstance( a, t.Top ) or isinstance( b, t.Top ) or \
+    if isinstance( a, Word.Top ) or isinstance( b, Word.Top ) or \
        ( isinstance( a, int ) and isinstance( b, int ) ):
-        vm.push( params[ 2 ], t.Top() )
+        vm.push( params[ 2 ], Word.Top( size ) )
 
-    elif isinstance( a, t.Bot ) and isinstance( b, t.Bot ):
-        vm.push( params[ 2 ], t.Bot() )
+    elif isinstance( a, Word.Bot ) and isinstance( b, Word.Bot ):
+        vm.push( params[ 2 ], Word.Bot( size ) )
 
     elif isinstance( a, int ):
         vm.push( params[ 2 ], a )
@@ -67,17 +118,17 @@ def bv_join( vm: 'Interpret', params: list[ int ], t: type ) -> None:
     else:
         vm.push( params[ 2 ], b )
 
-def bv_bot( vm: 'Interpret', params: list[ int ], t: type ) -> None:
-    vm.push( params[ 0 ], t.Bot() )
+def bv_bot( vm: 'Interpret', params: list[ int ], size: int ) -> None:
+    vm.push( params[ 0 ], Word.Bot( size ) )
 
-def bv_top( vm: 'Interpret', params: list[ int ], t: type ) -> None:
-    vm.push( params[ 0 ], t.Top() )
+def bv_top( vm: 'Interpret', params: list[ int ], size: int ) -> None:
+    vm.push( params[ 0 ], Word.Top( size ) )
 
-def bv_opt( vm: 'Interpret', params: list[ int ], t: type ) -> None:
+def bv_opt( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     cmp_val = vm.pop( params[ 0 ] )
     arg = vm.pop( params[ 1 ] )
     assert isinstance( cmp_val, bool )
-    vm.push( params[ 2 ], arg if cmp_val else t.Bot() )
+    vm.push( params[ 2 ], arg if cmp_val else Word.Bot( size ) )
 
 def bv_fork( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     value = vm.pop( params[ 0 ] )
@@ -527,14 +578,56 @@ name_to_code: dict[ str, int ] = {
     "builtin_bool_false":   0xeff_0082,
 
     "builtin_lambda_bind":   0xeff_0083,
-    "builtin_lambda_select": 0xeff_0084
+    "builtin_lambda_select": 0xeff_0084,
+
+    "builtin_token_join":    0xeff_0085,
+    "builtin_token_bot":     0xeff_0086,
+    "builtin_token_top":     0xeff_0087,
+    "builtin_token_opt":     0xeff_0088,
+    "builtin_token_fork":    0xeff_0089,
+    "builtin_token_move":    0xeff_008a,
+    "builtin_token_push":    0xeff_008b,
+    "builtin_token_pop":     0xeff_008c,
+
+    "builtin_dict_join":     0xeff_008d,
+    "builtin_dict_bot":      0xeff_008e,
+    "builtin_dict_top":      0xeff_008f,
+    "builtin_dict_opt":      0xeff_0090,
+    "builtin_dict_fork":     0xeff_0091,
+    "builtin_dict_move":     0xeff_0092,
+    "builtin_dict_push":     0xeff_0093,
+    "builtin_dict_pop":      0xeff_0094,
+    "builtin_dict_drop":     0xeff_0095,
+
+    "builtin_object_make":    0xeff_0096,
+    "builtin_object_destroy": 0xeff_0097,
+    "builtin_object_alloca":  0xeff_0098,
+    "builtin_object_free":    0xeff_0099,
+    "builtin_object_load":    0xeff_009a,
+    "builtin_object_store":   0xeff_009b,
+
+    "builtin_frame_make":    0xeff_009c,
+    "builtin_frame_destroy": 0xeff_009d,
+    "builtin_frame_alloca":  0xeff_009e,
+    "builtin_frame_free":    0xeff_009f,
+    "builtin_frame_load":    0xeff_00a0,
+    "builtin_frame_store":   0xeff_00a1,
+
+    "builtin_ref_join":      0xeff_00a2,
+    "builtin_ref_bot":       0xeff_00a3,
+    "builtin_ref_top":       0xeff_00a4,
+    "builtin_ref_opt":       0xeff_00a5,
+    "builtin_ref_fork":      0xeff_00a6,
+    "builtin_ref_move":      0xeff_00a7,
+    "builtin_ref_push":      0xeff_00a8,
+    "builtin_ref_pop":       0xeff_00a9
 }
 
 code_to_subr: dict[ int, Any ] = {
-    0xeff_0000: lambda vm, p: bv_join( vm, p, W8 ),
-    0xeff_0001: lambda vm, p: bv_bot(  vm, p, W8 ),
-    0xeff_0002: lambda vm, p: bv_top(  vm, p, W8 ),
-    0xeff_0003: lambda vm, p: bv_opt(  vm, p, W8 ),
+    0xeff_0000: lambda vm, p: bv_join( vm, p, 8 ),
+    0xeff_0001: lambda vm, p: bv_bot(  vm, p, 8 ),
+    0xeff_0002: lambda vm, p: bv_top(  vm, p, 8 ),
+    0xeff_0003: lambda vm, p: bv_opt(  vm, p, 8 ),
     0xeff_0004: lambda vm, p: bv_fork( vm, p, 8 ),
     0xeff_0005: lambda vm, p: bv_move( vm, p, 8 ),
     0xeff_0006: lambda vm, p: bv_push( vm, p, 8 ),
@@ -542,10 +635,10 @@ code_to_subr: dict[ int, Any ] = {
     0xeff_0008: lambda vm, p: bv_drop( vm, p, 8 ),
     0xeff_0009: lambda vm, p: bv_dup(  vm, p, 8 ),
 
-    0xeff_000a: lambda vm, p: bv_join( vm, p, W32 ),
-    0xeff_000b: lambda vm, p: bv_bot(  vm, p, W32 ),
-    0xeff_000c: lambda vm, p: bv_top(  vm, p, W32 ),
-    0xeff_000d: lambda vm, p: bv_opt(  vm, p, W32 ),
+    0xeff_000a: lambda vm, p: bv_join( vm, p, 32 ),
+    0xeff_000b: lambda vm, p: bv_bot(  vm, p, 32 ),
+    0xeff_000c: lambda vm, p: bv_top(  vm, p, 32 ),
+    0xeff_000d: lambda vm, p: bv_opt(  vm, p, 32 ),
     0xeff_000e: lambda vm, p: bv_fork( vm, p, 32 ),
     0xeff_000f: lambda vm, p: bv_move( vm, p, 32 ),
     0xeff_0010: lambda vm, p: bv_push( vm, p, 32 ),
