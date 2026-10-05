@@ -1,8 +1,17 @@
-from symtab import Subr
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from interpret import Interpret
+
+
+class Func:
+
+    def __init__( self, inputs: list[ int ],
+                  outputs: list[ int ],
+                  instrs: list[ int ] ) -> None:
+        self.input  = inputs
+        self.output = outputs
+        self.instrs = instrs
 
 
 class Word:
@@ -393,7 +402,7 @@ def bool_assert( vm: 'Interpret', params: list[ int ] ) -> None:
 
 class Binder:
 
-    def __init__( self, func: Subr, *inputs: tuple[ Any, ... ] ) -> None:
+    def __init__( self, func: Func, *inputs: tuple[ Any, ... ] ) -> None:
         self.func   = func
         self.inputs = [ *inputs ]
 
@@ -436,7 +445,7 @@ def func_call( vm: 'Interpret', params: list[ int ] ) -> None:
         pargs = func.inputs
         func  = func.func
 
-    assert isinstance( func, Subr )
+    assert isinstance( func, Func )
 
     vm.call( func, params[ 1 : ], pargs )
 
@@ -444,7 +453,7 @@ def func_call( vm: 'Interpret', params: list[ int ] ) -> None:
 
 def lambda_bind( vm: 'Interpret', params: list[ int ] ) -> None:
     func = vm.pop( params[ 0 ] )
-    if isinstance( func, Subr ):
+    if isinstance( func, Func ):
         vm.push( params[ 2 ], Binder( func, vm.pop( params[ 1 ] ) ) )
     else:
         assert isinstance( func, Binder )

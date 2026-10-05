@@ -1,5 +1,15 @@
 from parser import Program
 from symtab import LAMBDA_BASE, MU_BASE, Subr
+from builtin import Func
+
+
+class Executable:
+
+    def __init__( self, run_idx: int, lambdas: list[ Func ],
+                  mus: list[ Func ] ) -> None:
+        self.run_idx = run_idx
+        self.lambdas = lambdas
+        self.mus = mus
 
 
 class Substitution:
@@ -16,7 +26,7 @@ class Substitution:
     def is_extension( self, opcode: int ) -> bool:
         return ( opcode >> 54 ) & 0x3ff == 0x3c
 
-    def substitute_subr( self, subr: Subr ) -> None: 
+    def substitute_subr( self, subr: Subr ) -> Func:
         substituted: list[ int ] = []
 
         for instr in subr.instrs:
@@ -33,13 +43,9 @@ class Substitution:
 
             substituted.append( ( impl_code << 36 ) | ( instr & ( ( 1 << 36 ) - 1 ) ) ) 
 
-        subr.instrs = substituted
+        return Func( subr.input, subr.output, substituted )
 
-    def run( self ) -> Program:
-        for l in self.program.lambdas:
-            self.substitute_subr( l )
-
-        for m in self.program.mus:
-            self.substitute_subr( m )
-
-        return self.program
+    def run( self ) -> Executable:
+        lambdas = [ self.substitute_subr( subr ) for subr in self.program.lambdas ]
+        mus = [ self.substitute_subr( subr ) for subr in self.program.mus ]
+        return Executable( self.program.run_idx, lambdas, mus )

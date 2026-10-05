@@ -1,11 +1,11 @@
-from symtab  import BUILTIN_BASE, LAMBDA_BASE, MU_BASE, Subr
-from typing  import Any, Union
-from builtin import exec_op
+from symtab  import BUILTIN_BASE, LAMBDA_BASE, MU_BASE
+from typing  import Any
+from builtin import Func, exec_op
 
 
 class Interpret:
 
-    def __init__( self, main: int, lambdas: list[ Subr ], mus: list[ Subr ] ) -> None:
+    def __init__( self, main: int, lambdas: list[ Func ], mus: list[ Func ] ) -> None:
         self.stacks: list[ list[ Any ] ] = [ [] for _ in range( 511 ) ]
         self.lambdas = lambdas
         self.mus = mus
@@ -56,16 +56,16 @@ class Interpret:
 
         return result
 
-    def call( self, subr: Subr, actual: list[ int ], pargs: list[ Any ] = [] ) -> None:
+    def call( self, func: Func, actual: list[ int ], pargs: list[ Any ] = [] ) -> None:
         stored_pc        = self.pc
         stored_executing = self.executing
         stored_mapping   = self.map
 
         self.pc        = 0
-        self.executing = subr
-        self.map       = self._permute( actual, subr.input[ len( pargs ) : ] + subr.output )
+        self.executing = func
+        self.map       = self._permute( actual, func.input[ len( pargs ) : ] + func.output )
 
-        for arg, sid in zip( pargs, subr.input ):
+        for arg, sid in zip( pargs, func.input ):
             self.push( sid, arg )
 
         self.run()
