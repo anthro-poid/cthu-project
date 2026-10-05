@@ -254,3 +254,69 @@ structure lambda : callable[ func, bool ]
     bind = builtin_lambda_bind
     select = builtin_lambda_select
 )
+
+structure token : linear[ token, stck, bool ]
+(
+    join = builtin_token_join ; lattice
+    bot  = builtin_token_bot  ; lattice
+    top  = builtin_token_top  ; lattice
+    opt  = builtin_token_opt  ; lattice
+    fork = builtin_token_fork ; linear
+    move = builtin_token_move ; linear
+    push = builtin_token_push ; linear
+    pop  = builtin_token_pop  ; linear
+)
+
+structure ref : linear[ ref, stck, bool ]
+(
+    join = builtin_ref_join ; lattice
+    bot  = builtin_ref_bot  ; lattice
+    top  = builtin_ref_top  ; lattice
+    opt  = builtin_ref_opt  ; lattice
+    fork = builtin_ref_fork ; linear
+    move = builtin_ref_move ; linear
+    push = builtin_ref_push ; linear
+    pop  = builtin_ref_pop  ; linear
+)
+
+structure object : affine[ obj_repr, stck, bool ],
+                   memory[ ref, token, stck, obj_repr ]
+(
+    join = builtin_dict_join ; lattice
+    bot  = builtin_dict_bot  ; lattice
+    top  = builtin_dict_top  ; lattice
+    opt  = builtin_dict_opt  ; lattice
+    fork = builtin_dict_fork ; linear
+    move = builtin_dict_move ; linear
+    push = builtin_dict_push ; linear
+    pop  = builtin_dict_pop  ; linear
+    drop = builtin_dict_drop ; affine
+
+    make    = builtin_object_make;    memory
+    destroy = builtin_object_destroy; memory
+    alloca  = builtin_object_alloca;  memory
+    free    = builtin_object_free;    memory
+    load    = builtin_object_load;    memory
+    store   = builtin_object_store;   memory
+)
+
+structure frame : affine[ frame_repr, stck, bool ],
+                  memory[ ref, token, obj_repr, frame_repr ]
+(
+    join = builtin_dict_join ; lattice
+    bot  = builtin_dict_bot  ; lattice
+    top  = builtin_dict_top  ; lattice
+    opt  = builtin_dict_opt  ; lattice
+    fork = builtin_dict_fork ; linear
+    move = builtin_dict_move ; linear
+    push = builtin_dict_push ; linear
+    pop  = builtin_dict_pop  ; linear
+    drop = builtin_dict_drop ; affine
+
+    make    = builtin_frame_make    ; memory
+    destroy = builtin_frame_destroy ; memory
+    alloca  = builtin_frame_alloca  ; memory
+    free    = builtin_frame_free    ; memory
+    load    = builtin_frame_load    ; memory
+    store   = builtin_frame_store   ; memory
+)

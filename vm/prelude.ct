@@ -5,6 +5,10 @@ type bool
 type stck
 type func
 type dict
+type token
+type obj_repr
+type frame_repr
+type ref
 
 signature lattice[ T, B ]
 (
@@ -95,15 +99,19 @@ signature convert[ short, long ]
     ext ∷ short → long
 )
 
-signature map[ K, V, M ]
-(
-    make ∷ ∅ → M
-    take ∷ K × M → V × M
-    put  ∷ K × V × M → M
-)
-
 signature callable[ F, B ]
 (
     apply ∷ F × F → F
     select ∷ B × F × F → F
+)
+
+signature memory[ R, T, V, M ]
+(
+    make ∷ ∅ → M
+    destroy ∷ M → ∅
+
+    alloca ∷ M → R × T × M
+    free ∷ R × T × M → M
+    load ∷ R × M → V × M
+    store ∷ R × V × M →  M
 )
