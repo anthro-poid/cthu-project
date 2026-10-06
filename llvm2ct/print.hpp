@@ -7,11 +7,15 @@
 
 namespace cthu
 {
+    using llvm2ct::function_type;
+    using llvm2ct::type_to_structure;
+
+    using cthu::builtin_structure_name;
+
     inline auto &operator<<( auto &os, const std::vector< uint16_t > &stacks )
     {
         for ( size_t i = 0; i < stacks.size(); ++ i )
             os << ( i ? " " : "" ) << stacks[ i ];
-
         return os;
     }
 
@@ -21,12 +25,10 @@ namespace cthu
 
         if ( !i.in.empty() )
             os << " " << i.in;
-
         if ( !i.out.empty() )
             os << " -> " << i.out;
 
         os << "\n";
-
         return os;
     }
 
@@ -36,7 +38,6 @@ namespace cthu
 
         if ( !s.input.empty() )
             os << " " << s.input;
-
         if ( !s.output.empty() )
             os << " -> " << s.output;
 
@@ -46,7 +47,6 @@ namespace cthu
             os << i;
 
         os << "    )\n";
-
         return os;
     }
 
@@ -58,12 +58,11 @@ namespace cthu
             os << "\n" << sub;
 
         os << ")\n";
-
         return os;
     }
 
     inline auto &print_function_signature( auto &os,
-                                           const llvm2ct::function_type &type )
+                                           const function_type &type )
     {
         os << "signature " << llvm2ct::function_signature_name( type )
            << "[ F, S, B";
@@ -105,7 +104,7 @@ namespace cthu
     }
 
     static inline void print_function_top_bot( auto &os, const std::string &name,
-                                               const llvm2ct::function_type &type )
+                                               const function_type &type )
     {
         auto print = [ & ]( const std::string &subroutine,
                             const std::string &operation )
@@ -125,11 +124,11 @@ namespace cthu
             os << "\n    (\n";
 
             for ( size_t i = 0; i < type.inputs.size(); ++ i )
-                os << "        " << cthu::builtin_structure_name( llvm2ct::type_to_structure( type.inputs[ i ] ) )
+                os << "        " << builtin_structure_name( type_to_structure( type.inputs[ i ] ) )
                    << " drop " << i << "\n";
 
             for ( size_t i = 0; i < type.outputs.size(); ++ i )
-                os << "        " << cthu::builtin_structure_name( llvm2ct::type_to_structure( type.outputs[ i ] ) )
+                os << "        " << builtin_structure_name( type_to_structure( type.outputs[ i ] ) )
                    << " " << operation << " -> out" << i << "\n";
 
             os << "    )\n\n";
@@ -149,7 +148,7 @@ namespace cthu
     }
 
     static inline void print_function_frame( auto &os, const std::string &name,
-                                             const llvm2ct::function_type &type )
+                                             const function_type &type )
     {
         os << "    frame = λ A B";
 
@@ -166,7 +165,7 @@ namespace cthu
         os << "\n    (\n";
 
         for ( size_t i = 0; i < type.inputs.size(); ++ i )
-            os << "        " << cthu::builtin_structure_name( llvm2ct::type_to_structure( type.inputs[ i ] ) )
+            os << "        " << builtin_structure_name( type_to_structure( type.inputs[ i ] ) )
                << " fork " << i << " -> " << i << "_1 " << i << "_2\n";
 
         auto print_call = [ & ]( const char *function, const char *copy )
@@ -190,7 +189,7 @@ namespace cthu
         print_call( "B", "2" );
 
         for ( size_t i = 0; i < type.outputs.size(); ++ i )
-            os << "        " << cthu::builtin_structure_name( llvm2ct::type_to_structure( type.outputs[ i ] ) )
+            os << "        " << builtin_structure_name( type_to_structure( type.outputs[ i ] ) )
                << " join out" << i << "_1 out" << i << "_2 -> out" << i << "\n";
     }
 
@@ -211,17 +210,16 @@ namespace cthu
            << ")\n";
     }
 
-    inline auto &print_function_structure( auto &os,
-                                           const llvm2ct::function_type &type )
+    inline auto &print_function_structure( auto &os, const function_type &type )
     {
         std::string name = llvm2ct::function_structure_name( type );
         os << "structure " << name << " : " << llvm2ct::function_signature_name( type )
            << "[ func, stck, bool";
 
-        for ( cthu::b_type input : type.inputs )
+        for ( auto input : type.inputs )
             os << ", " << cthu::builtin_type_name( input );
 
-        for ( cthu::b_type output : type.outputs )
+        for ( auto output : type.outputs )
             os << ", " << cthu::builtin_type_name( output );
 
         print_function_builtins( os );

@@ -115,8 +115,7 @@ void codegen::append_nibble( uint16_t accumulator, uint16_t out, uint8_t value,
     emit_nibble( shift_stack, 4, structure );
 
     uint16_t shifted = allocate_stack();
-    _current_subr->add_insn( structure, cthu::b_op::shl,
-                             { accumulator, shift_stack }, { shifted } );
+    _current_subr->add_insn( structure, cthu::b_op::shl, { accumulator, shift_stack }, { shifted } );
 
     /* These stacks are safe to reuse after the completed shl. Do not
      * commit _pending_frees here: they may belong to operands of the
@@ -307,7 +306,6 @@ void codegen::visitBasicBlock( llvm::BasicBlock &block )
 
     for ( llvm::Value *value : _block_inputs[ &block ] )
         _current_subr->add_in( define( value ) );
-
 }
 
 void codegen::visitReturnInst( llvm::ReturnInst &instruction )
@@ -353,7 +351,7 @@ std::vector< llvm::Value * > codegen::branch_arguments( llvm::ArrayRef< llvm::Va
                 args.push_back( value );
     };
 
-    append( first );
+    append( first  );
     append( second );
 
     return args;
@@ -553,7 +551,6 @@ void codegen::visitCallInst( llvm::CallInst &instruction )
 
     function_type call_type{ callee->getFunctionType()->params(),
                              callee->getReturnType() };
-
     cthu::insn call{ function_structure_name( call_type ),
                      cthu::b_op::call, { function_stack } };
 

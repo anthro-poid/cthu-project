@@ -120,7 +120,6 @@ function_type::function_type( llvm::ArrayRef< llvm::Type * > input_types,
 
     if ( !output->isVoidTy() )
         outputs.push_back( type_to_builtin( output ) );
-
 }
 
 function_type::function_type( llvm::ArrayRef< llvm::Value * > input_values,
@@ -131,7 +130,6 @@ function_type::function_type( llvm::ArrayRef< llvm::Value * > input_values,
 
     if ( !output->isVoidTy() )
         outputs.push_back( type_to_builtin( output ) );
-
 }
 
 std::string function_structure_name( const function_type &type )
