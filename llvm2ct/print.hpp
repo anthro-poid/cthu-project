@@ -63,25 +63,31 @@ namespace cthu
     }
 
     inline auto &print_function_signature( auto &os,
-                                           llvm::ArrayRef< llvm::Type * > inputs,
-                                           llvm::Type *output )
+                                           const llvm2ct::function_type &type )
     {
-        std::string name = llvm2ct::function_signature_name( inputs.size(), !output->isVoidTy() );
-        os << "signature " << name << "[ F, S, B";
+        os << "signature " << llvm2ct::function_signature_name( type )
+           << "[ F, S, B";
 
-        for ( size_t i = 0; i < inputs.size(); ++ i )
+        for ( size_t i = 0; i < type.inputs.size(); ++ i )
             os << ", I" << i;
 
-        if ( !output->isVoidTy() )
-            os << ", O";
+        for ( size_t i = 0; i < type.outputs.size(); ++ i )
+            os << ", O" << i;
 
         os << " ] : simple[ F, S, B ]\n(\n"
            << "    call ∷ F";
 
-        for ( size_t i = 0; i < inputs.size(); ++ i )
+        for ( size_t i = 0; i < type.inputs.size(); ++ i )
             os << " × I" << i;
 
-        os << " → " << ( output->isVoidTy() ? "∅" : "O" );
+        os << " → ";
+
+        if ( type.outputs.empty() )
+            os << "∅";
+        else
+            for ( size_t i = 0; i < type.outputs.size(); ++ i )
+                os << ( i ? " × " : "" ) << "O" << i;
+
         os << "\n)\n";
         return os;
     }
@@ -99,29 +105,32 @@ namespace cthu
     }
 
     static inline void print_function_top_bot( auto &os, const std::string &name,
-                                               llvm::ArrayRef< llvm::Type * > inputs,
-                                               llvm::Type *output )
+                                               const llvm2ct::function_type &type )
     {
         auto print = [ & ]( const std::string &subroutine,
-                                      const std::string &operation )
+                            const std::string &operation )
         {
             os << "    " << subroutine << " = λ";
 
-            for ( size_t i = 0; i < inputs.size(); ++ i )
+            for ( size_t i = 0; i < type.inputs.size(); ++ i )
                 os << " " << i;
 
-            if ( !output->isVoidTy() )
-                os << " -> out";
+            if ( !type.outputs.empty() )
+            {
+                os << " ->";
+                for ( size_t i = 0; i < type.outputs.size(); ++ i )
+                    os << " out" << i;
+            }
 
             os << "\n    (\n";
 
-            for ( size_t i = 0; i < inputs.size(); ++ i )
-                os << "        " << llvm2ct::type_name( inputs[ i ] )
+            for ( size_t i = 0; i < type.inputs.size(); ++ i )
+                os << "        " << cthu::builtin_structure_name( llvm2ct::type_to_structure( type.inputs[ i ] ) )
                    << " drop " << i << "\n";
 
-            if ( !output->isVoidTy() )
-                os << "        " << llvm2ct::type_name( output ) << " "
-                   << operation << " -> out\n";
+            for ( size_t i = 0; i < type.outputs.size(); ++ i )
+                os << "        " << cthu::builtin_structure_name( llvm2ct::type_to_structure( type.outputs[ i ] ) )
+                   << " " << operation << " -> out" << i << "\n";
 
             os << "    )\n\n";
         };
@@ -140,45 +149,49 @@ namespace cthu
     }
 
     static inline void print_function_frame( auto &os, const std::string &name,
-                                             llvm::ArrayRef< llvm::Type * > inputs,
-                                             llvm::Type *output )
+                                             const llvm2ct::function_type &type )
     {
         os << "    frame = λ A B";
 
-        for ( size_t i = 0; i < inputs.size(); ++ i )
+        for ( size_t i = 0; i < type.inputs.size(); ++ i )
             os << " " << i;
 
-        if ( !output->isVoidTy() )
-            os << " -> out";
+        if ( !type.outputs.empty() )
+        {
+            os << " ->";
+            for ( size_t i = 0; i < type.outputs.size(); ++ i )
+                os << " out" << i;
+        }
 
         os << "\n    (\n";
 
-        for ( size_t i = 0; i < inputs.size(); ++ i )
-            os << "        " << llvm2ct::type_name( inputs[ i ] )
+        for ( size_t i = 0; i < type.inputs.size(); ++ i )
+            os << "        " << cthu::builtin_structure_name( llvm2ct::type_to_structure( type.inputs[ i ] ) )
                << " fork " << i << " -> " << i << "_1 " << i << "_2\n";
 
-        auto print_call = []( auto &os, const std::string &name,
-                              llvm::ArrayRef< llvm::Type * > inputs,
-                              llvm::Type *output, const std::string &function,
-                              const std::string &copy )
+        auto print_call = [ & ]( const char *function, const char *copy )
         {
             os << "        " << name << " call " << function;
 
-            for ( size_t i = 0; i < inputs.size(); ++ i )
+            for ( size_t i = 0; i < type.inputs.size(); ++ i )
                 os << " " << i << "_" << copy;
 
-            if ( !output->isVoidTy() )
-                os << " -> out" << copy;
+            if ( !type.outputs.empty() )
+            {
+                os << " ->";
+                for ( size_t i = 0; i < type.outputs.size(); ++ i )
+                    os << " out" << i << "_" << copy;
+            }
 
             os << "\n";
         };
 
-        print_call( os, name, inputs, output, "A", "1" );
-        print_call( os, name, inputs, output, "B", "2" );
+        print_call( "A", "1" );
+        print_call( "B", "2" );
 
-        if ( !output->isVoidTy() )
-            os << "        " << llvm2ct::type_name( output )
-               << " join out1 out2 -> out\n";
+        for ( size_t i = 0; i < type.outputs.size(); ++ i )
+            os << "        " << cthu::builtin_structure_name( llvm2ct::type_to_structure( type.outputs[ i ] ) )
+               << " join out" << i << "_1 out" << i << "_2 -> out" << i << "\n";
     }
 
     static inline void print_function_join_opt( auto &os, const std::string &name )
@@ -199,23 +212,21 @@ namespace cthu
     }
 
     inline auto &print_function_structure( auto &os,
-                                           llvm::ArrayRef< llvm::Type * > inputs,
-                                           llvm::Type *output )
+                                           const llvm2ct::function_type &type )
     {
-        std::string name = llvm2ct::function_structure_name( inputs, output );
-        os << "structure " << name << " : "
-           << llvm2ct::function_signature_name( inputs.size(), !output->isVoidTy() )
+        std::string name = llvm2ct::function_structure_name( type );
+        os << "structure " << name << " : " << llvm2ct::function_signature_name( type )
            << "[ func, stck, bool";
 
-        for ( llvm::Type *parameter : inputs )
-            os << ", " << llvm2ct::type_name( parameter );
+        for ( cthu::b_type input : type.inputs )
+            os << ", " << cthu::builtin_type_name( input );
 
-        if ( !output->isVoidTy() )
-            os << ", " << llvm2ct::type_name( output );
+        for ( cthu::b_type output : type.outputs )
+            os << ", " << cthu::builtin_type_name( output );
 
         print_function_builtins( os );
-        print_function_top_bot( os, name, inputs, output );
-        print_function_frame( os, name, inputs, output );
+        print_function_top_bot( os, name, type );
+        print_function_frame( os, name, type );
         print_function_join_opt( os, name );
 
         return os;

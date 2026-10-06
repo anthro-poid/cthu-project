@@ -22,17 +22,16 @@ void print_files( auto &c )
     std::set< std::string > emitted_signatures;
     std::set< std::string > emitted_structures;
 
-    auto emit_function_type = [ & ]( llvm::ArrayRef< llvm::Type * > inputs,
-                                               llvm::Type *output )
+    auto emit_function_type = [ & ]( const llvm2ct::function_type &type )
     {
-        std::string signature_name = llvm2ct::function_signature_name( inputs.size(), !output->isVoidTy() );
-        std::string structure_name = llvm2ct::function_structure_name( inputs, output );
+        std::string signature_name = llvm2ct::function_signature_name( type );
+        std::string structure_name = llvm2ct::function_structure_name( type );
 
         if ( emitted_signatures.insert( signature_name ).second )
-            cthu::print_function_signature( prelude, inputs, output );
+            cthu::print_function_signature( prelude, type );
 
         if ( emitted_structures.insert( structure_name ).second )
-            cthu::print_function_structure( builtins, inputs, output );
+            cthu::print_function_structure( builtins, type );
     };
 
     for ( llvm::Function &function : *c._module )
@@ -49,12 +48,13 @@ void print_files( auto &c )
             for ( llvm::Value *value : c._block_inputs[ &block ] )
                 inputs.push_back( value->getType() );
 
-            emit_function_type( inputs, output );
+            llvm2ct::function_type type{ inputs, output };
+            emit_function_type( type );
         }
     }
 
     for ( const llvm2ct::function_type &type : c._generated_function_types )
-        emit_function_type( type.inputs, type.output );
+        emit_function_type( type );
 }
 
 int main( int argc, char *argv[] )

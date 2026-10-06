@@ -38,6 +38,7 @@ uint16_t codegen::define( llvm::Value *value )
     return stack;
 }
 
+// TODO: Get rid of using `structure` parameter.
 uint16_t codegen::use( llvm::Value *value, cthu::b_strct structure )
 {
     auto it = _stack_of.find( value );
@@ -306,6 +307,7 @@ void codegen::visitBasicBlock( llvm::BasicBlock &block )
 
     for ( llvm::Value *value : _block_inputs[ &block ] )
         _current_subr->add_in( define( value ) );
+
 }
 
 void codegen::visitReturnInst( llvm::ReturnInst &instruction )
@@ -407,8 +409,9 @@ cthu::subr_ref codegen::create_branch_frame( llvm::BranchInst &instruction,
     frame.add_insn( structure, _symtab.get_subroutine( target ), {}, { function_stack } );
 
     llvm::Type *return_type = instruction.getFunction()->getReturnType();
-    cthu::insn call{ function_structure_name( _block_inputs[ target ], return_type ),
-                     cthu::b_op::call, { function_stack } };
+    function_type call_type{ _block_inputs[ target ], return_type };
+
+    cthu::insn call{ function_structure_name( call_type ), cthu::b_op::call, { function_stack } };
 
     for ( llvm::Value *value : target_arguments )
     {
@@ -442,8 +445,10 @@ void codegen::visitConditionalBranch( llvm::BranchInst &instruction )
     for ( llvm::Value *value : arguments )
         types.push_back( value->getType() );
 
-    _generated_function_types.emplace_back( types, return_type );
-    std::string function_structure = function_structure_name( types, return_type );
+    function_type continuation_type{ types, return_type };
+
+    _generated_function_types.push_back( continuation_type );
+    std::string function_structure = function_structure_name( continuation_type );
     cthu::subr_ptr true_subroutine = true_arguments == arguments
         ? &_symtab.get_subroutine( true_target )
         : &create_branch_frame( instruction, true_target, arguments, true_arguments );
@@ -510,7 +515,9 @@ void codegen::visitBranchInst( llvm::BranchInst &instruction )
                              _symtab.get_subroutine( target ), {}, { function_stack } );
 
     llvm::Type *return_type = instruction.getFunction()->getReturnType();
-    cthu::insn call{ function_structure_name( target_inputs, return_type ),
+    function_type call_type{ target_inputs, return_type };
+
+    cthu::insn call{ function_structure_name( call_type ),
                      cthu::b_op::call, { function_stack } };
 
     for ( llvm::Value *value : target_inputs )
@@ -544,7 +551,11 @@ void codegen::visitCallInst( llvm::CallInst &instruction )
     _current_subr->add_insn( _symtab.get_structure( callee ), _symtab.get_subroutine( &callee->getEntryBlock() ),
                              {}, { function_stack } );
 
-    cthu::insn call{ function_structure_name( callee->getFunctionType() ), cthu::b_op::call, { function_stack } };
+    function_type call_type{ callee->getFunctionType()->params(),
+                             callee->getReturnType() };
+
+    cthu::insn call{ function_structure_name( call_type ),
+                     cthu::b_op::call, { function_stack } };
 
     for ( llvm::Value *argument : instruction.args() )
         call.add_in( use( argument, arithmetic_structure( argument ) ) );

@@ -3,11 +3,11 @@
 #include "builtin.hpp"
 #include "debuginfo.hpp"
 
-#include <llvm/ADT/SmallVector.h>
 #include <llvm/BinaryFormat/Dwarf.h>
 #include <llvm/IR/DebugInfoMetadata.h>
 
 #include <cassert>
+#include <string>
 #include <string_view>
 
 namespace llvm2ct
@@ -61,9 +61,32 @@ cthu::b_strct type_to_structure( llvm::Type *type )
     __builtin_unreachable();
 }
 
-std::string type_name( llvm::Type *type )
+cthu::b_strct type_to_structure( cthu::b_type type )
 {
-    return std::string{ cthu::builtin_structure_name( type_to_structure( type ) ) };
+    switch ( type )
+    {
+        case cthu::b_type::w8:         return cthu::b_strct::w8;
+        case cthu::b_type::w32:        return cthu::b_strct::w32;
+        case cthu::b_type::boolean: return cthu::b_strct::boolean;
+        default: __builtin_unreachable();
+    }
+}
+
+cthu::b_type type_to_builtin( llvm::Type *type )
+{
+    if ( type->isPointerTy() )
+        return cthu::b_type::ref;
+
+    if ( type->isIntegerTy() )
+        switch ( integer_width( type ) )
+        {
+            case 1:  return cthu::b_type::boolean;
+            case 8:  return cthu::b_type::w8;
+            case 32: return cthu::b_type::w32;
+            default: __builtin_unreachable();
+        }
+
+    __builtin_unreachable();
 }
 
 cthu::b_strct arithmetic_structure( bool is_unsigned, unsigned width )
@@ -71,7 +94,7 @@ cthu::b_strct arithmetic_structure( bool is_unsigned, unsigned width )
     if ( width == 1 )
         return cthu::b_strct::boolean;
 
-    return width == 8 ? ( is_unsigned ? cthu::b_strct::u8 : cthu::b_strct::i8 )
+    return width == 8 ? ( is_unsigned ? cthu::b_strct::u8  : cthu::b_strct::i8  )
                       : ( is_unsigned ? cthu::b_strct::u32 : cthu::b_strct::i32 );
 }
 
@@ -89,57 +112,51 @@ cthu::b_strct arithmetic_structure( llvm::Value *value )
     return arithmetic_structure( is_unsigned, integer_width( value ) );
 }
 
-std::string arithmetic_structure_name( bool is_unsigned, unsigned width )
+function_type::function_type( llvm::ArrayRef< llvm::Type * > input_types,
+                              llvm::Type *output )
 {
-    return std::string{ cthu::builtin_structure_name(
-        arithmetic_structure( is_unsigned, width ) ) };
+    for ( llvm::Type *input : input_types )
+        inputs.push_back( type_to_builtin( input ) );
+
+    if ( !output->isVoidTy() )
+        outputs.push_back( type_to_builtin( output ) );
+
 }
 
-std::string function_structure_name( llvm::ArrayRef< llvm::Type * > inputs,
-                                     llvm::Type *output )
+function_type::function_type( llvm::ArrayRef< llvm::Value * > input_values,
+                              llvm::Type *output )
 {
-    auto function_type_name = []( llvm::Type *type )
-    {
-        return type->isIntegerTy( 1 ) ? "b" : type_name( type );
-    };
+    for ( llvm::Value *input : input_values )
+        inputs.push_back( type_to_builtin( input->getType() ) );
+
+    if ( !output->isVoidTy() )
+        outputs.push_back( type_to_builtin( output ) );
+
+}
+
+std::string function_structure_name( const function_type &type )
+{
     std::string name = "f";
 
-    for ( llvm::Type *input : inputs )
-        name += "_" + function_type_name( input );
+    for ( cthu::b_type input : type.inputs )
+        name += "_" + std::string{ cthu::builtin_type_name( input ) };
 
     name += "__";
 
-    if ( !output->isVoidTy() )
-        name += function_type_name( output );
+    for ( size_t i = 0; i < type.outputs.size(); ++ i )
+        name += ( i ? "_" : "" ) + std::string{ cthu::builtin_type_name( type.outputs[ i ] ) };
 
     return name;
 }
 
-std::string function_structure_name( llvm::FunctionType *type )
-{
-    return function_structure_name( type->params(), type->getReturnType() );
-}
-
-std::string function_structure_name( llvm::ArrayRef< llvm::Value * > inputs,
-                                     llvm::Type *output )
-{
-    llvm::SmallVector< llvm::Type * > types;
-
-    for ( llvm::Value *input : inputs )
-        types.push_back( input->getType() );
-
-    return function_structure_name( types, output );
-}
-
-std::string function_signature_name( size_t inputs, bool has_output )
+std::string function_signature_name( size_t inputs, size_t outputs )
 {
     return "f" + scripted_number( inputs, false )
-               + scripted_number( has_output ? 1 : 0, true );
+               + scripted_number( outputs, true );
 }
 
-std::string function_signature_name( llvm::FunctionType *type )
+std::string function_signature_name( const function_type &type )
 {
-    return function_signature_name( type->getNumParams(),
-                                    !type->getReturnType()->isVoidTy() );
+    return function_signature_name( type.inputs.size(), type.outputs.size() );
 }
 }

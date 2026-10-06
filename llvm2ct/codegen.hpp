@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mapping.hpp"
 #include "symtab.hpp"
 
 #include <llvm/ADT/DenseMap.h>
@@ -16,12 +17,6 @@
 
 namespace llvm2ct
 {
-    struct function_type
-    {
-        std::vector< llvm::Type * > inputs;
-        llvm::Type *output;
-    };
-
     struct codegen : llvm::InstVisitor< codegen >
     {
         llvm::LLVMContext &_context;

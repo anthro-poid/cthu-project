@@ -7,6 +7,18 @@
 
 namespace cthu
 {
+#define CTHU_BUILTIN_TYPES \
+    ( ( w8,         "w₈"         ) ) \
+    ( ( w32,        "w₃₂"        ) ) \
+    ( ( boolean,    "bool"       ) ) \
+    ( ( stck,       "stck"       ) ) \
+    ( ( func,       "func"       ) ) \
+    ( ( dict,       "dict"       ) ) \
+    ( ( token,      "token"      ) ) \
+    ( ( obj_repr,   "obj_repr"   ) ) \
+    ( ( frame_repr, "frame_repr" ) ) \
+    ( ( ref,        "ref"        ) )
+
 #define CTHU_BUILTIN_STRUCTURES \
     ( ( w8,       "w₈"       ) ) \
     ( ( w32,      "w₃₂"      ) ) \
@@ -77,6 +89,11 @@ namespace cthu
 
 #define CTHU_ENUM_VALUE( r, data, value ) BOOST_PP_TUPLE_ELEM( 2, 0, value ),
 
+    enum struct b_type
+    {
+        BOOST_PP_SEQ_FOR_EACH( CTHU_ENUM_VALUE, _, CTHU_BUILTIN_TYPES )
+    };
+
     enum struct b_strct
     {
         BOOST_PP_SEQ_FOR_EACH( CTHU_ENUM_VALUE, _, CTHU_BUILTIN_STRUCTURES )
@@ -92,6 +109,16 @@ namespace cthu
 #define CTHU_ENUM_STRING_CASE( r, type, value ) \
     case type::BOOST_PP_TUPLE_ELEM( 2, 0, value ): \
         return BOOST_PP_TUPLE_ELEM( 2, 1, value );
+
+    constexpr std::string_view builtin_type_name( b_type type )
+    {
+        switch ( type )
+        {
+            BOOST_PP_SEQ_FOR_EACH( CTHU_ENUM_STRING_CASE, b_type, CTHU_BUILTIN_TYPES )
+        }
+
+        __builtin_unreachable();
+    }
 
     constexpr std::string_view builtin_structure_name( b_strct structure )
     {
@@ -116,6 +143,7 @@ namespace cthu
 #undef CTHU_ENUM_STRING_CASE
 #undef CTHU_BUILTIN_OPERATIONS
 #undef CTHU_BUILTIN_STRUCTURES
+#undef CTHU_BUILTIN_TYPES
 
     b_op nibble_operation( uint8_t value );
 }
