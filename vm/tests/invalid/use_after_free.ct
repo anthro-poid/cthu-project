@@ -1,0 +1,11 @@
+structure main
+(
+    run = λ
+    (
+        frame make → mem
+        frame alloca mem → base owner mem
+        ref dup base → stale base
+        frame free base owner mem → mem
+        mem₈ load stale mem → value mem
+    )
+)

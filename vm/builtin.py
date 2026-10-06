@@ -582,7 +582,7 @@ def ref_add( vm: 'Interpret', params: list[ int ] ) -> None:
     ref = vm.pop( params[ 0 ] )
     value = bv_word( vm.pop( params[ 1 ] ), 32 )
     assert isinstance( ref, Ref )
-    vm.push( params[ 2 ], Ref( ref.addr, ref.off + value.signed() ) )
+    vm.push( params[ 2 ], Ref( ref.obj_id, ref.off + value.signed() ) )
 
 ### Dict operations
 
@@ -714,7 +714,8 @@ def bool_load( vm: 'Interpret', params: list[ int ] ) -> None:
     mem = vm.pop( params[ 1 ] )
 
     obj_id, off = ref.obj_id, ref.off
-    vm.push( params[ 2 ], bool( mem[ obj_id ][ off ] ) )
+    value = bv_word( mem[ obj_id ][ off ], 8 )
+    vm.push( params[ 2 ], bool( value.value ) )
     vm.push( params[ 3 ], mem )
 
 def bool_store( vm: 'Interpret', params: list[ int ] ) -> None:

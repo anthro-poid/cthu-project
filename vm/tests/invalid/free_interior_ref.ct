@@ -1,0 +1,12 @@
+structure main
+(
+    run = λ
+    (
+        frame make → mem
+        frame alloca mem → base owner mem
+        i₃₂ cons_1 → offset
+        ref add base offset → interior
+        frame free interior owner mem → mem
+        frame destroy mem
+    )
+)

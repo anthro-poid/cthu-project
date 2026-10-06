@@ -1,0 +1,10 @@
+structure main
+(
+    run = λ
+    (
+        frame make → mem
+        frame alloca mem → first first_owner mem
+        frame alloca mem → second second_owner mem
+        frame free first second_owner mem → mem
+    )
+)

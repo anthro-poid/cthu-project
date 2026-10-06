@@ -1,0 +1,62 @@
+structure main
+(
+    run = λ
+    (
+        frame make → mem
+        frame alloca mem → base owner mem
+
+        ; A w32 is stored as four little-endian bytes.
+        ref dup base → access base
+        i₃₂ cons_15 → value
+        mem₃₂ store access value mem → mem
+
+        ref dup base → access base
+        mem₃₂ load access mem → loaded mem
+        i₃₂ cons_15 → expected
+        i₃₂ eq? loaded expected → ok
+        bool assert ok
+
+        ; The least-significant byte is at the base address.
+        ref dup base → access base
+        mem₈ load access mem → low mem
+        i₈ cons_15 → expected
+        i₈ eq? low expected → ok
+        bool assert ok
+
+        ; Storing a byte at offset two changes bits 16--23 of a w32 load.
+        ref dup base → access base
+        i₃₂ cons_2 → offset
+        ref add access offset → access
+        i₈ cons_7 → byte
+        mem₈ store access byte mem → mem
+
+        ref dup base → access base
+        mem₃₂ load access mem → loaded mem
+        i₃₂ cons_7 → seven
+        i₃₂ cons_1 → one
+        i₃₂ cons_4 → four
+        i₃₂ shl one four → sixteen
+        i₃₂ shl seven sixteen → high
+        i₃₂ cons_15 → low
+        i₃₂ add high low → expected
+        i₃₂ eq? loaded expected → ok
+        bool assert ok
+
+        ; Booleans occupy one byte and false must round-trip as false.
+        ref dup base → access base
+        i₃₂ cons_4 → offset
+        ref add access offset → access
+        bool false → value
+        mem_bool store access value mem → mem
+
+        ref dup base → access base
+        i₃₂ cons_4 → offset
+        ref add access offset → access
+        mem_bool load access mem → loaded mem
+        bool not loaded → ok
+        bool assert ok
+
+        frame free base owner mem → mem
+        frame destroy mem
+    )
+)
