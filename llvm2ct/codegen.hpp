@@ -68,24 +68,19 @@ namespace llvm2ct
 
         uint16_t define( llvm::Value *value );
 
-        /* structure is passed through to materialize_constant() if value
-         * turns out to be a fresh ConstantInt — see there for why it can't
-         * decide its own structure. Defaults to i32 for call sites with
-         * no natural signedness context (e.g. visitStoreInst). */
-        uint16_t use( llvm::Value *value,
-                      cthu::b_strct structure = cthu::b_strct::i32 );
+        uint16_t consume( llvm::Value *value, uint16_t stack );
+        uint16_t use( llvm::Value *value );
+        uint16_t use( llvm::Value *value, cthu::b_strct constructor );
         void drop_unused( llvm::Value *value );
         void drop_remaining_values();
         void commit_frees();
 
-        /* use() calls this the first time it sees a value with no producer
-         * of its own — that's correct for an llvm::Argument (its value
-         * arrives via the call), but a ConstantInt needs an actual value
-         * emitted, or the compiled output reads from a stack nothing ever
-         * wrote to. Values above 15 are assembled one hexadecimal digit at
-         * a time with cons_N, shl, and or.
+        /* A ConstantInt has no producer, so each operand occurrence is
+         * materialized with the constructor selected by its consumer.
+         * Values above 15 are assembled one hexadecimal digit at a time
+         * with cons_N, shl, and or.
          *
-         * structure is the caller's choice, not derived here: a
+         * The constructor is the caller's choice, not derived here: a
          * ConstantInt is uniqued by LLVM (every literal `5` of type i32 is
          * the same Value*), so debug_type() on the constant itself can
          * resolve to an arbitrary one of possibly several unrelated source

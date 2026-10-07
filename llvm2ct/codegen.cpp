@@ -38,20 +38,9 @@ uint16_t codegen::define( llvm::Value *value )
     return stack;
 }
 
-// TODO: Get rid of using `structure` parameter.
-uint16_t codegen::use( llvm::Value *value, cthu::b_strct structure )
+uint16_t codegen::consume( llvm::Value *value, uint16_t stack )
 {
-    auto it = _stack_of.find( value );
-    uint16_t stack;
-
-    if ( it != _stack_of.end() )
-        stack = it->second;
-    else
-    {
-        stack = define( value );
-        if ( auto *c = llvm::dyn_cast< llvm::ConstantInt >( value ) )
-            materialize_constant( stack, *c, structure );
-    }
+    assert( _remaining_uses.lookup( value ) > 0 );
 
     if ( -- _remaining_uses[ value ] > 0 )
     {
@@ -73,6 +62,30 @@ uint16_t codegen::use( llvm::Value *value, cthu::b_strct structure )
     _pending_frees.push_back( stack );
     _stack_of.erase( value );
     return stack;
+}
+
+uint16_t codegen::use( llvm::Value *value )
+{
+    assert( !llvm::isa< llvm::ConstantInt >( value ) && "constant requires an explicit constructor" );
+    auto it = _stack_of.find( value );
+    assert( it != _stack_of.end() && "value was not defined or passed into the block" );
+    return consume( value, it->second );
+}
+
+uint16_t codegen::use( llvm::Value *value, cthu::b_strct constructor )
+{
+    if ( auto *constant = llvm::dyn_cast< llvm::ConstantInt >( value ) )
+    {
+        assert( _remaining_uses.lookup( value ) > 0 );
+        -- _remaining_uses[ value ];
+
+        uint16_t stack = allocate_stack();
+        materialize_constant( stack, *constant, constructor );
+        _pending_frees.push_back( stack );
+        return stack;
+    }
+
+    return use( value );
 }
 
 void codegen::drop_unused( llvm::Value *value )
@@ -312,7 +325,7 @@ void codegen::visitReturnInst( llvm::ReturnInst &instruction )
 {
     if ( auto *value = instruction.getReturnValue() )
     {
-        uint16_t output = use( value );
+        uint16_t output = use( value, arithmetic_structure( value ) );
         auto &in_vec = _current_subr->get_input();
 
         if ( std::find( in_vec.begin(), in_vec.end(), output ) != in_vec.end() )
