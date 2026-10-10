@@ -32,7 +32,7 @@ structure w₈ : simple[ w₈, stck, bool ]
     cons_15 = builtin_bv8cons_15
 )
 
-structure mem₈ : memory_access[ ref, w₈, frame_repr ]
+structure mem₈ : memory_access[ ref, w₈, mem_repr ]
 (
     load  = builtin_w8_load
     store = builtin_w8_store
@@ -55,7 +55,7 @@ structure w₃₂ : simple[ w₃₂, stck, bool ]
     dup  = builtin_bv32dup  ; simple
 )
 
-structure mem₃₂ : memory_access[ ref, w₃₂, frame_repr ]
+structure mem₃₂ : memory_access[ ref, w₃₂, mem_repr ]
 (
     load  = builtin_w32_load
     store = builtin_w32_store
@@ -86,7 +86,7 @@ structure bool : logical[ bool, stck ]
     assert = builtin_bool_assert ; logical
 )
 
-structure mem_bool : memory_access[ ref, bool, frame_repr ]
+structure mem_bool : memory_access[ ref, bool, mem_repr ]
 (
     load  = builtin_bool_load
     store = builtin_bool_store
@@ -318,8 +318,8 @@ structure ref : simple[ ref, stck, bool ],
     add  = builtin_ref_add  ; pointer
 )
 
-structure frame : affine[ frame_repr, stck, bool ],
-                  memory[ ref, token, obj_repr, frame_repr ]
+structure memory : affine[ mem_repr, stck, bool ],
+                   memory[ ref, w₃₂, token, mem_repr ]
 (
     join = builtin_dict_join ; lattice
     bot  = builtin_dict_bot  ; lattice
@@ -331,8 +331,6 @@ structure frame : affine[ frame_repr, stck, bool ],
     pop  = builtin_dict_pop  ; linear
     drop = builtin_dict_drop ; affine
 
-    make    = builtin_frame_make    ; memory
-    destroy = builtin_frame_destroy ; memory
-    alloca  = builtin_frame_alloca  ; memory
-    free    = builtin_frame_free    ; memory
+    alloca  = builtin_memory_alloca  ; memory
+    free    = builtin_memory_free    ; memory
 )

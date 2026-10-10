@@ -2,8 +2,8 @@ structure main
 (
     run = λ
     (
-        frame make → mem
-        frame alloca mem → base owner mem
+        i₃₂ cons_8 → size
+        memory alloca size → base owner mem
 
         ; A w32 is stored as four little-endian bytes.
         ref dup base → access base
@@ -56,7 +56,6 @@ structure main
         bool not loaded → ok
         bool assert ok
 
-        frame free base owner mem → mem
-        frame destroy mem
+        memory free base owner mem
     )
 )

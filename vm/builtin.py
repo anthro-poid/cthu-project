@@ -24,6 +24,9 @@ class Word:
         sign = 1 << ( self.size - 1 )
         return self.value - ( 1 << self.size ) if self.value & sign else self.value
 
+    def get_value( self ) -> int:
+        return self.value
+
     def __int__( self ) -> int:
         return self.value
 
@@ -40,18 +43,6 @@ class Word:
 
 
 class Bool:
-
-    class Bot:
-        pass
-
-    class Top:
-        pass
-
-
-class Token:
-
-    def __init__( self, obj_id: int ) -> None:
-        self.obj_id = obj_id
 
     class Bot:
         pass
@@ -96,11 +87,31 @@ class Dict:
         self.dict[ key ] = value
 
 
-class Frame( Dict ):
+class Memory( Dict ):
 
-    def __init__( self ) -> None:
+    def __init__( self, size: int ) -> None:
         super().__init__()
-        self.next_obj_id = 0
+        self.size = size
+        for i in range( self.size ):
+            self.dict[ i ] = Word.Bot( 8 )
+
+    def __setitem__( self, key: Any, value: Any ) -> None:
+        if key not in self.dict:
+            raise KeyError( f"Out of bounds access {key}." )
+
+        self.dict[ key ] = value
+
+
+class Token:
+
+    def __init__( self, obj: Memory ) -> None:
+        self.obj = obj
+
+    class Bot:
+        pass
+
+    class Top:
+        pass
 
 
 class Ref:
@@ -111,12 +122,15 @@ class Ref:
     class Top:
         pass
 
-    def __init__( self, _id: int, off: int ) -> None:
-        self.obj_id = _id
-        self.off    = off
+    def __init__( self, obj: Memory, off: int ) -> None:
+        self.obj = obj
+        self.off = off
+
+    def get_off( self ) -> int:
+        return self.off
 
     def clone( self ) -> 'Ref':
-        return Ref( self.obj_id, self.off )
+        return Ref( self.obj, self.off )
 
 
 ### Bitvector operations
@@ -582,7 +596,7 @@ def ref_add( vm: 'Interpret', params: list[ int ] ) -> None:
     ref = vm.pop( params[ 0 ] )
     value = bv_word( vm.pop( params[ 1 ] ), 32 )
     assert isinstance( ref, Ref )
-    vm.push( params[ 2 ], Ref( ref.obj_id, ref.off + value.signed() ) )
+    vm.push( params[ 2 ], Ref( ref.obj, ref.off + value.signed() ) )
 
 ### Dict operations
 
@@ -628,41 +642,22 @@ def dict_pop( vm: 'Interpret', params: list[ int ] ) -> None:
 def dict_drop( vm: 'Interpret', params: list[ int ] ) -> None:
     vm.pop( params[ 0 ] )
 
-### Frame operations
+### Memory operations
 
-def frame_make( vm: 'Interpret', params: list[ int ] ) -> None:
-    vm.push( params[ 0 ], Frame() )
+def memory_alloca( vm: 'Interpret', params: list[ int ] ) -> None:
+    size = vm.pop( params[ 0 ] )
+    memory = Memory( size.get_value() )
+    vm.push( params[ 1 ], Ref( memory, 0 ) )
+    vm.push( params[ 2 ], Token( memory ) )
+    vm.push( params[ 3 ], memory )
 
-def frame_destroy( vm: 'Interpret', params: list[ int ] ) -> None:
-    vm.pop( params[ 0 ] )
+def memory_free( vm: 'Interpret', params: list[ int ] ) -> None:
+    r = vm.pop( params[ 0 ] )
+    t = vm.pop( params[ 1 ] )
+    m = vm.pop( params[ 2 ] )
 
-def frame_alloca( vm: 'Interpret', params: list[ int ] ) -> None:
-    mem = vm.pop( params[ 0 ] )
-    assert isinstance( mem, Frame )
-
-    obj_id = mem.next_obj_id
-    mem.next_obj_id += 1
-    mem[ obj_id ] = Dict()
-
-    vm.push( params[ 1 ], Ref( obj_id, 0 ) )
-    vm.push( params[ 2 ], Token( obj_id ) )
-    vm.push( params[ 3 ], mem )
-
-def frame_free( vm: 'Interpret', params: list[ int ] ) -> None:
-    ref = vm.pop( params[ 0 ] )
-    token = vm.pop( params[ 1 ] )
-    mem = vm.pop( params[ 2 ] )
-
-    assert isinstance( ref, Ref )
-    assert isinstance( token, Token )
-    assert isinstance( mem, Frame )
-    assert ref.off == 0
-    assert ref.obj_id == token.obj_id
-    assert ref.obj_id in mem.dict
-
-    mem.dict.pop( ref.obj_id )
-
-    vm.push( params[ 3 ], mem )
+    assert r.get_off() == 0
+    assert id( r.obj ) == id( t.obj ) == id( m )
 
 ### Memory access operations
 
@@ -670,8 +665,9 @@ def w8_load( vm: 'Interpret', params: list[ int ] ) -> None:
     ref = vm.pop( params[ 0 ] )
     mem = vm.pop( params[ 1 ] )
 
-    obj_id, off = ref.obj_id, ref.off
-    vm.push( params[ 2 ], mem[ obj_id ][ off ] )
+    assert id( ref.obj ) == id( mem )
+
+    vm.push( params[ 2 ], mem[ ref.get_off() ] )
     vm.push( params[ 3 ], mem )
 
 def w8_store( vm: 'Interpret', params: list[ int ] ) -> None:
@@ -679,19 +675,20 @@ def w8_store( vm: 'Interpret', params: list[ int ] ) -> None:
     val = vm.pop( params[ 1 ] )
     mem = vm.pop( params[ 2 ] )
 
-    obj_id, off = ref.obj_id, ref.off
-    mem[ obj_id ][ off ] = val
+    assert id( ref.obj ) == id( mem )
+
+    mem[ ref.get_off() ] = val
     vm.push( params[ 3 ], mem )
 
 def w32_load( vm: 'Interpret', params: list[ int ] ) -> None:
     ref = vm.pop( params[ 0 ] )
     mem = vm.pop( params[ 1 ] )
-
-    obj_id, off = ref.obj_id, ref.off
     value = 0
 
+    assert id( ref.obj ) == id( mem )
+
     for i in range( 4 ):
-        byte = bv_word( mem[ obj_id ][ off + i ], 8 )
+        byte = bv_word( mem[ ref.get_off() + i ], 8 )
         value |= byte.value << ( 8 * i )
 
     vm.push( params[ 2 ], Word( value, 32 ) )
@@ -702,10 +699,10 @@ def w32_store( vm: 'Interpret', params: list[ int ] ) -> None:
     val = bv_word( vm.pop( params[ 1 ] ), 32 )
     mem = vm.pop( params[ 2 ] )
 
-    obj_id, off = ref.obj_id, ref.off
+    assert id( ref.obj ) == id( mem )
 
     for i in range( 4 ):
-        mem[ obj_id ][ off + i ] = Word( val.value >> ( 8 * i ), 8 )
+        mem[ ref.get_off() + i ] = Word( val.value >> ( 8 * i ), 8 )
 
     vm.push( params[ 3 ], mem )
 
@@ -713,8 +710,9 @@ def bool_load( vm: 'Interpret', params: list[ int ] ) -> None:
     ref = vm.pop( params[ 0 ] )
     mem = vm.pop( params[ 1 ] )
 
-    obj_id, off = ref.obj_id, ref.off
-    value = bv_word( mem[ obj_id ][ off ], 8 )
+    assert id( ref.obj ) == id( mem )
+
+    value = bv_word( mem[ ref.get_off() ], 8 )
     vm.push( params[ 2 ], bool( value.value ) )
     vm.push( params[ 3 ], mem )
 
@@ -723,8 +721,9 @@ def bool_store( vm: 'Interpret', params: list[ int ] ) -> None:
     val = vm.pop( params[ 1 ] )
     mem = vm.pop( params[ 2 ] )
 
-    obj_id, off = ref.obj_id, ref.off
-    mem[ obj_id ][ off ] = Word( bool( val ), 8 )
+    assert id( ref.obj ) == id( mem )
+
+    mem[ ref.get_off() ] = Word( bool( val ), 8 )
     vm.push( params[ 3 ], mem )
 
 ### Entry point
@@ -897,10 +896,8 @@ name_to_code: dict[ str, int ] = {
     "builtin_dict_pop":      0xeff_0094,
     "builtin_dict_drop":     0xeff_0095,
 
-    "builtin_frame_make":    0xeff_0096,
-    "builtin_frame_destroy": 0xeff_0097,
-    "builtin_frame_alloca":  0xeff_0098,
-    "builtin_frame_free":    0xeff_0099,
+    "builtin_memory_alloca": 0xeff_0098,
+    "builtin_memory_free":   0xeff_0099,
 
     "builtin_w8_load":       0xeff_009a,
     "builtin_w8_store":      0xeff_009b,
@@ -1086,10 +1083,8 @@ code_to_subr: dict[ int, Any ] = {
     0xeff_0094: dict_pop,
     0xeff_0095: dict_drop,
 
-    0xeff_0096: frame_make,
-    0xeff_0097: frame_destroy,
-    0xeff_0098: frame_alloca,
-    0xeff_0099: frame_free,
+    0xeff_0098: memory_alloca,
+    0xeff_0099: memory_free,
 
     0xeff_009a: w8_load,
     0xeff_009b: w8_store,

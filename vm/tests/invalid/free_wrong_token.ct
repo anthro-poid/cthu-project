@@ -2,9 +2,12 @@ structure main
 (
     run = λ
     (
-        frame make → mem
-        frame alloca mem → first first_owner mem
-        frame alloca mem → second second_owner mem
-        frame free first second_owner mem → mem
+        i₃₂ cons_8 → size
+        memory alloca size → first first_owner first_mem
+        i₃₂ cons_8 → size
+        memory alloca size → second second_owner second_mem
+
+        memory free first second_owner first_mem
+        memory free second first_owner second_mem
     )
 )

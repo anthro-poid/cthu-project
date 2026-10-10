@@ -1,14 +1,12 @@
 type w₈
 type w₃₂
-
 type bool
 type stck
 type func
 type dict
-type token
-type obj_repr
-type frame_repr
 type ref
+type token
+type mem_repr
 
 signature lattice[ T, B ]
 (
@@ -116,11 +114,8 @@ signature memory_access[ R, V, M ]
     store  ∷ R × V × M → M
 )
 
-signature memory[ R, T, V, M ]
+signature memory[ R, S, T, M ]
 (
-    make    ∷ ∅ → M
-    destroy ∷ M → ∅
-
-    alloca ∷ M → R × T × M
-    free   ∷ R × T × M → M
+    alloca ∷ S → R × T × M
+    free   ∷ R × T × M → ∅
 )
