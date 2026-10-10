@@ -14,10 +14,9 @@ namespace cthu
     ( ( stck,       "stck"       ) ) \
     ( ( func,       "func"       ) ) \
     ( ( dict,       "dict"       ) ) \
+    ( ( ref,        "ref"        ) ) \
     ( ( token,      "token"      ) ) \
-    ( ( obj_repr,   "obj_repr"   ) ) \
-    ( ( frame_repr, "frame_repr" ) ) \
-    ( ( ref,        "ref"        ) )
+    ( ( mem_repr,   "mem_repr"   ) )
 
 #define CTHU_BUILTIN_STRUCTURES \
     ( ( w8,       "w₈"        ) ) \
@@ -32,7 +31,13 @@ namespace cthu
     ( ( bool_8,   "b⁸"        ) ) \
     ( ( bool_32,  "b³²"       ) ) \
     ( ( function, "function"  ) ) \
-    ( ( lambda,   "lambda"    ) )
+    ( ( lambda,   "lambda"    ) ) \
+    ( ( token,    "token"     ) ) \
+    ( ( ref,      "ref"       ) ) \
+    ( ( memory,   "memory"    ) ) \
+    ( ( mem8,     "mem₈"       ) ) \
+    ( ( mem32,    "mem₃₂"      ) ) \
+    ( ( mem_bool, "mem_bool"  ) )
 
 #define CTHU_BUILTIN_OPERATIONS \
     ( ( join,          "join"    ) ) \
@@ -70,6 +75,10 @@ namespace cthu
     ( ( call,          "call"    ) ) \
     ( ( bind,          "bind"    ) ) \
     ( ( select,        "select"  ) ) \
+    ( ( load,          "load"    ) ) \
+    ( ( store,         "store"   ) ) \
+    ( ( alloca,        "alloca"  ) ) \
+    ( ( free,          "free"    ) ) \
     ( ( cons_0,        "cons_0"  ) ) \
     ( ( cons_1,        "cons_1"  ) ) \
     ( ( cons_2,        "cons_2"  ) ) \
