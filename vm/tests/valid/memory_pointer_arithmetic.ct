@@ -1,0 +1,27 @@
+structure main
+(
+    run = λ
+    (
+        i₃₂ cons_4 → size
+        memory alloca size → base owner mem
+
+        ref dup base → access base
+        i₃₂ cons_3 → offset
+        ref add access offset → access
+        i₃₂ cons_3 → offset
+        i₃₂ cons_0 → zero
+        i₃₂ sub zero offset → offset
+        ref add access offset → access
+
+        i₈ cons_9 → value
+        mem₈ store access value mem → mem
+
+        ref dup base → access base
+        mem₈ load access mem → value mem
+        i₈ cons_9 → expected
+        i₈ eq? value expected → ok
+        bool assert ok
+
+        memory free base owner mem
+    )
+)

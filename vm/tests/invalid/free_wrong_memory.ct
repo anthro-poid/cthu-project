@@ -1,0 +1,12 @@
+structure main
+(
+    run = λ
+    (
+        i₃₂ cons_1 → size
+        memory alloca size → first first_owner first_mem
+        i₃₂ cons_1 → size
+        memory alloca size → second second_owner second_mem
+
+        memory free first first_owner second_mem
+    )
+)

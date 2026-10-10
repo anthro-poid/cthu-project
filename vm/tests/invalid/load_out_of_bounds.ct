@@ -1,0 +1,11 @@
+structure main
+(
+    run = λ
+    (
+        i₃₂ cons_1 → size
+        memory alloca size → base owner mem
+        i₃₂ cons_1 → offset
+        ref add base offset → access
+        mem₈ load access mem → value mem
+    )
+)

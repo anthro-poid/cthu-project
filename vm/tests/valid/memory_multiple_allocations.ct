@@ -1,0 +1,33 @@
+structure main
+(
+    run = λ
+    (
+        i₃₂ cons_1 → size
+        memory alloca size → first first_owner first_mem
+        i₃₂ cons_1 → size
+        memory alloca size → second second_owner second_mem
+
+        ref dup first → access first
+        i₈ cons_3 → value
+        mem₈ store access value first_mem → first_mem
+
+        ref dup second → access second
+        i₈ cons_7 → value
+        mem₈ store access value second_mem → second_mem
+
+        ref dup first → access first
+        mem₈ load access first_mem → value first_mem
+        i₈ cons_3 → expected
+        i₈ eq? value expected → ok
+        bool assert ok
+
+        ref dup second → access second
+        mem₈ load access second_mem → value second_mem
+        i₈ cons_7 → expected
+        i₈ eq? value expected → ok
+        bool assert ok
+
+        memory free first first_owner first_mem
+        memory free second second_owner second_mem
+    )
+)
