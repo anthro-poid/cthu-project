@@ -1,0 +1,24 @@
+structure main
+(
+    run = λ
+    (
+        i₃₂ cons_4 → size
+        memory alloca size → base owner mem
+
+        ; Joining aliases of one allocation must preserve its identity.
+        memory fork mem → mem1 mem2
+        memory join mem1 mem2 → mem
+
+        ref dup base → access base
+        i₈ cons_6 → value
+        mem₈ store access value mem → mem
+
+        ref dup base → access base
+        mem₈ load access mem → loaded mem
+        i₈ cons_6 → expected
+        i₈ eq? loaded expected → ok
+        bool assert ok
+
+        memory free base owner mem
+    )
+)

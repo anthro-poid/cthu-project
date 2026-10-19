@@ -1,0 +1,58 @@
+structure main
+(
+    run = λ
+    (
+        ; Bottom is the identity of join, independently of operand order.
+        i₃₂ cons_5 → w1
+        w₃₂ bot → wb1
+        w₃₂ join w1 wb1 → wr1
+        i₃₂ cons_5 → we1
+        i₃₂ eq? wr1 we1 → wok1
+        bool assert wok1
+
+        w₃₂ bot → wb2
+        i₃₂ cons_6 → w2
+        w₃₂ join wb2 w2 → wr2
+        i₃₂ cons_6 → we2
+        i₃₂ eq? wr2 we2 → wok2
+        bool assert wok2
+
+        ; Joins producing abstract values must still yield consumable values.
+        i₃₂ cons_1 → wc1
+        i₃₂ cons_2 → wc2
+        w₃₂ join wc1 wc2 → wt1
+        w₃₂ drop wt1
+
+        w₃₂ top → wt2
+        i₃₂ cons_3 → wc3
+        w₃₂ join wt2 wc3 → wt3
+        w₃₂ drop wt3
+
+        i₃₂ cons_4 → wc4
+        w₃₂ top → wt4
+        w₃₂ join wc4 wt4 → wt5
+        w₃₂ drop wt5
+
+        ; Concrete booleans must interact with bottom in both orders.
+        bool true → bt1
+        bool bot → bb1
+        bool join bt1 bb1 → br1
+        bool assert br1
+
+        bool bot → bb2
+        bool true → bt2
+        bool join bb2 bt2 → br2
+        bool assert br2
+
+        bool false → bf
+        bool bot → bb3
+        bool join bf bb3 → br3
+        bool not br3 → br4
+        bool assert br4
+
+        bool true → bc1
+        bool false → bc2
+        bool join bc1 bc2 → btop
+        bool drop btop
+    )
+)

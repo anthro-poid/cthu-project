@@ -1,0 +1,43 @@
+structure main
+(
+    run = λ
+    (
+        ; Joining two aliases of the same concrete word preserves the word.
+        i₃₂ cons_7 → w32
+        w₃₂ fork w32 → w32a w32b
+        w₃₂ join w32a w32b → w32out
+        i₃₂ cons_7 → w32expected
+        i₃₂ eq? w32out w32expected → w32ok
+        bool assert w32ok
+
+        i₈ cons_9 → w8
+        w₈ fork w8 → w8a w8b
+        w₈ join w8a w8b → w8out
+        i₈ cons_9 → w8expected
+        i₈ eq? w8out w8expected → w8ok
+        bool assert w8ok
+
+        ; Concrete booleans are also idempotent under join.
+        bool true → true
+        bool fork true → true1 true2
+        bool join true1 true2 → trueout
+        bool assert trueout
+
+        bool false → false
+        bool fork false → false1 false2
+        bool join false1 false2 → falseout
+        bool not falseout → falseok
+        bool assert falseok
+
+        ; Idempotence also holds for both lattice extrema.
+        w₃₂ bot → bot
+        w₃₂ fork bot → bot1 bot2
+        w₃₂ join bot1 bot2 → botout
+        w₃₂ drop botout
+
+        w₃₂ top → top
+        w₃₂ fork top → top1 top2
+        w₃₂ join top1 top2 → topout
+        w₃₂ drop topout
+    )
+)

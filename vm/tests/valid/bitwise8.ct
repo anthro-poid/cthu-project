@@ -1,0 +1,20 @@
+structure main
+(
+    run = λ
+    (
+        ; Negation is an involution for both signed and unsigned views.
+        i₈ cons_5 → signed
+        i₈ neg signed → signed_neg
+        i₈ neg signed_neg → signed_out
+        i₈ cons_5 → signed_expected
+        i₈ eq? signed_out signed_expected → signed_ok
+        bool assert signed_ok
+
+        u₈ cons_10 → unsigned
+        u₈ neg unsigned → unsigned_neg
+        u₈ neg unsigned_neg → unsigned_out
+        u₈ cons_10 → unsigned_expected
+        u₈ eq? unsigned_out unsigned_expected → unsigned_ok
+        bool assert unsigned_ok
+    )
+)

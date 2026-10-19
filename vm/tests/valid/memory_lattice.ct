@@ -1,0 +1,85 @@
+structure main
+(
+    run = λ
+    (
+        ; Keep the first forked package and bottomize the second one.
+        i₃₂ cons_1 → size1
+        memory alloca size1 → r1 t1 m1
+
+        ref fork r1 → r1a r1b
+        bool true → rt1
+        ref opt rt1 r1a → r1keep
+        bool false → rf1
+        ref opt rf1 r1b → r1bot
+        ref join r1keep r1bot → r1out
+
+        token fork t1 → t1a t1b
+        bool true → tt1
+        token opt tt1 t1a → t1keep
+        bool false → tf1
+        token opt tf1 t1b → t1bot
+        token join t1keep t1bot → t1out
+
+        memory fork m1 → m1a m1b
+        bool true → mt1
+        memory opt mt1 m1a → m1keep
+        bool false → mf1
+        memory opt mf1 m1b → m1bot
+        memory join m1keep m1bot → m1out
+
+        memory free r1out t1out m1out
+
+        ; Keep the second package to exercise the opposite join order.
+        i₃₂ cons_1 → size2
+        memory alloca size2 → r2 t2 m2
+
+        ref fork r2 → r2a r2b
+        bool false → rf2
+        ref opt rf2 r2a → r2bot
+        bool true → rt2
+        ref opt rt2 r2b → r2keep
+        ref join r2bot r2keep → r2out
+
+        token fork t2 → t2a t2b
+        bool false → tf2
+        token opt tf2 t2a → t2bot
+        bool true → tt2
+        token opt tt2 t2b → t2keep
+        token join t2bot t2keep → t2out
+
+        memory fork m2 → m2a m2b
+        bool false → mf2
+        memory opt mf2 m2a → m2bot
+        bool true → mt2
+        memory opt mt2 m2b → m2keep
+        memory join m2bot m2keep → m2out
+
+        memory free r2out t2out m2out
+
+        ; Exercise joins that produce an abstract memory. A retained fork is
+        ; used for freeing the concrete allocation after dropping the result.
+        i₃₂ cons_1 → size3
+        memory alloca size3 → r3 t3 m3
+        memory fork m3 → m3free m3test
+        memory top → m3top
+        memory join m3test m3top → m3out
+        memory drop m3out
+        memory free r3 t3 m3free
+
+        i₃₂ cons_1 → size4
+        memory alloca size4 → r4 t4 m4
+        memory fork m4 → m4free m4test
+        memory top → m4top
+        memory join m4top m4test → m4out
+        memory drop m4out
+        memory free r4 t4 m4free
+
+        i₃₂ cons_1 → size5
+        memory alloca size5 → r5 t5 m5
+        memory fork m5 → m5free m5tests
+        memory fork m5tests → m5a m5b
+        memory join m5a m5b → m5out
+        memory drop m5out
+        memory free r5 t5 m5free
+    )
+)
