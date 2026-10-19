@@ -1170,6 +1170,7 @@ code_to_subr: dict[ int, Any ] = {
     0xeff_0068: lambda vm, p: bv_and(  vm, p, 8 ),
     0xeff_0069: lambda vm, p: bv_or(   vm, p, 8 ),
     0xeff_006a: lambda vm, p: bv_xor(  vm, p, 8 ),
+    0xeff_006b: lambda vm, p: bv_neg(  vm, p, 8 ),
     0xeff_006c: lambda vm, p: bv_udiv( vm, p, 8 ),
 
     0xeff_006d: lambda vm, p: bv_urem( vm, p, 8 ),
