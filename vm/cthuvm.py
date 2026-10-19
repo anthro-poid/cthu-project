@@ -2,10 +2,11 @@
 
 import sys
 
-from lexer        import Lexer, Token
+from lexer        import Lexer
 from parser       import Parser
 from substitution import Substitution
 from interpret    import Interpret
+from builtin      import Bool, Word
 
 
 def main() -> None:
@@ -38,7 +39,13 @@ def main() -> None:
     if print_result:
         assert len( i.executing.output ) == 1
         result = i.pop( i.executing.output[ 0 ] )
-        print( int( result ) if isinstance( result, bool ) else result )
+
+        if type( result ) is Bool:
+            print( int( result.get_value() ) )
+        elif type( result ) is Word:
+            print( result )
+        else:
+            assert False, "Unprintable result."
 
     assert i.check_emptiness()
 
