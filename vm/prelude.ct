@@ -98,7 +98,7 @@ signature convert[ short, long ]
 
 signature callable[ F, B ]
 (
-    apply ∷ F × F → F
+    bind ∷ F × F → F
     select ∷ B × F × F → F
 )
 
