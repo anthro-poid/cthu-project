@@ -60,7 +60,6 @@ signature arithmetic[ T, B ]
     le?  ∷ T × T → B
     gt?  ∷ T × T → B
     ge?  ∷ T × T → B
-    nil? ∷ T     → B
 
     shl ∷ T × T → T
     shr ∷ T × T → T
