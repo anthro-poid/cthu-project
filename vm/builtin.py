@@ -383,22 +383,17 @@ def bv_mul( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
     vm.push( params[ 2 ], Word( l.value * r.value, size ) )
 
-def bv_sdiv( vm: 'Interpret', params: list[ int ], size: int ) -> None:
+def bv_sdiv_rem( vm: 'Interpret', params: list[ int ], size: int, _div: bool ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
-    lhs, rhs = l.signed(), r.signed()
+    dividend, divisor = l.signed(), r.signed()
+    quot, rem = divmod( dividend, divisor )
 
-    vm.push( params[ 2 ],
-        Word( lhs // rhs + ( 0 if lhs % rhs == 0 else 1 )
-              if ( lhs // rhs ) < 0 else lhs // rhs, size ) )
+    if ( dividend > 0 ) != ( divisor > 0 ) and rem != 0:
+        rem -= divisor
+    if quot < 0 and rem != 0:
+        quot += 1
 
-def bv_srem( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    lhs, rhs = l.signed(), r.signed()
-
-    vm.push( params[ 2 ],
-        Word( -rhs + ( lhs % rhs )
-              if max( lhs, rhs ) >= 0 and min( lhs, rhs ) < 0
-              else ( lhs % rhs ), size ) )
+    vm.push( params[ 2 ], Word( quot if _div else rem, size ) )
 
 def bv_udiv( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     l, r = bv_prepare_binary( vm, params, size )
@@ -1104,8 +1099,8 @@ code_to_subr: dict[ int, Any ] = {
     0xeff_0023: lambda vm, p: bv_add(  vm, p, 32 ),
     0xeff_0024: lambda vm, p: bv_sub(  vm, p, 32 ),
     0xeff_0025: lambda vm, p: bv_mul(  vm, p, 32 ),
-    0xeff_0026: lambda vm, p: bv_sdiv( vm, p, 32 ),
-    0xeff_0027: lambda vm, p: bv_srem( vm, p, 32 ),
+    0xeff_0026: lambda vm, p: bv_sdiv_rem( vm, p, 32,  True ),
+    0xeff_0027: lambda vm, p: bv_sdiv_rem( vm, p, 32, False ),
     0xeff_0028: lambda vm, p: bv_eq(   vm, p, 32 ),
     0xeff_0029: lambda vm, p: bv_ne(   vm, p, 32 ),
     0xeff_002a: lambda vm, p: bv_slt(  vm, p, 32 ),
@@ -1146,8 +1141,8 @@ code_to_subr: dict[ int, Any ] = {
     0xeff_004b: lambda vm, p: bv_add(  vm, p, 8 ),
     0xeff_004c: lambda vm, p: bv_sub(  vm, p, 8 ),
     0xeff_004d: lambda vm, p: bv_mul(  vm, p, 8 ),
-    0xeff_004e: lambda vm, p: bv_sdiv( vm, p, 8 ),
-    0xeff_004f: lambda vm, p: bv_srem( vm, p, 8 ),
+    0xeff_004e: lambda vm, p: bv_sdiv_rem( vm, p, 8,  True ),
+    0xeff_004f: lambda vm, p: bv_sdiv_rem( vm, p, 8, False ),
     0xeff_0050: lambda vm, p: bv_eq(   vm, p, 8 ),
     0xeff_0051: lambda vm, p: bv_ne(   vm, p, 8 ),
     0xeff_0052: lambda vm, p: bv_slt(  vm, p, 8 ),
