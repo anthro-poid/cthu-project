@@ -308,14 +308,6 @@ class RefTop( Ref ):
 
 ### Bitvector operations
 
-def bv_prepare_binary( vm: 'Interpret', params: list[ int ],
-                       size: int ) -> tuple[ Word, Word ]:
-    l = vm.pop( params[ 0 ] )
-    r = vm.pop( params[ 1 ] )
-    assert type( l ) is Word and l.size == size
-    assert type( r ) is Word and r.size == size
-    return l, r
-
 def bv_join( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     a = vm.pop( params[ 0 ] )
     b = vm.pop( params[ 1 ] )
@@ -371,20 +363,54 @@ def bv_dup( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     vm.push( params[ 1 ], value )
     vm.push( params[ 2 ], value )
 
+def bv_resolve_bot_top( vm: 'Interpret', l: Word, r: Word, to: int, size: int ) -> bool:
+    assert l.size == size
+    assert r.size == size
+
+    if type( l ) is Word and type( r ) is Word:
+        return False
+
+    if type( l ) is WordTop or type( r ) is WordTop:
+        vm.push( to, WordTop( size ) )
+    else:
+        vm.push( to, WordBot( size ) )
+
+    return True
+
+def bv_resolve_bot_top_bool( vm: 'Interpret', l: Word, r: Word, to: int, size: int ) -> bool:
+    assert l.size == size
+    assert r.size == size
+
+    if type( l ) is Word and type( r ) is Word:
+        return False
+
+    if type( l ) is WordTop or type( r ) is WordTop:
+        vm.push( to, BoolTop() )
+    else:
+        vm.push( to, BoolBot() )
+
+    return True
+
 def bv_add( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Word( l.value + r.value, size ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Word( l.value + r.value, size ) )
 
 def bv_sub( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Word( l.value - r.value, size ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Word( l.value - r.value, size ) )
 
 def bv_mul( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Word( l.value * r.value, size ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Word( l.value * r.value, size ) )
 
 def bv_sdiv_rem( vm: 'Interpret', params: list[ int ], size: int, _div: bool ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if bv_resolve_bot_top( vm, l, r, params[ 2 ], size ):
+        return
+
     dividend, divisor = l.signed(), r.signed()
     quot, rem = divmod( dividend, divisor )
 
@@ -396,81 +422,103 @@ def bv_sdiv_rem( vm: 'Interpret', params: list[ int ], size: int, _div: bool ) -
     vm.push( params[ 2 ], Word( quot if _div else rem, size ) )
 
 def bv_udiv( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Word( l.value // r.value, size ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Word( l.value // r.value, size ) )
 
 def bv_urem( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Word( l.value % r.value, size ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Word( l.value % r.value, size ) )
 
 def bv_eq( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Bool( l.value == r.value ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top_bool( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Bool( l.value == r.value ) )
 
 def bv_ne( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Bool( l.value != r.value ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top_bool( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Bool( l.value != r.value ) )
 
 def bv_slt( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Bool( l.signed() < r.signed() ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top_bool( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Bool( l.signed() < r.signed() ) )
 
 def bv_sle( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Bool( l.signed() <= r.signed() ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top_bool( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Bool( l.signed() <= r.signed() ) )
 
 def bv_sge( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Bool( l.signed() >= r.signed() ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top_bool( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Bool( l.signed() >= r.signed() ) )
 
 def bv_sgt( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Bool( l.signed() > r.signed() ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top_bool( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Bool( l.signed() > r.signed() ) )
 
 def bv_ult( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Bool( l.value < r.value ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top_bool( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Bool( l.value < r.value ) )
 
 def bv_ule( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Bool( l.value <= r.value ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top_bool( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Bool( l.value <= r.value ) )
 
 def bv_uge( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Bool( l.value >= r.value ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top_bool( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Bool( l.value >= r.value ) )
 
 def bv_ugt( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Bool( l.value > r.value ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top_bool( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Bool( l.value > r.value ) )
 
 def bv_shl( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Word( l.value << r.value, size ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Word( l.value << r.value, size ) )
 
 def bv_ashr( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Word( l.signed() >> r.value, size ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Word( l.signed() >> r.value, size ) )
 
 def bv_lshr( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Word( l.value >> r.value, size ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Word( l.value >> r.value, size ) )
 
 def bv_and( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Word( l.value & r.value, size ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Word( l.value & r.value, size ) )
 
 def bv_or( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Word( l.value | r.value, size ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Word( l.value | r.value, size ) )
 
 def bv_xor( vm: 'Interpret', params: list[ int ], size: int ) -> None:
-    l, r = bv_prepare_binary( vm, params, size )
-    vm.push( params[ 2 ], Word( l.value ^ r.value, size ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bv_resolve_bot_top( vm, l, r, params[ 2 ], size ):
+        vm.push( params[ 2 ], Word( l.value ^ r.value, size ) )
 
 def bv_neg( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     value = vm.pop( params[ 0 ] )
-    assert type( value ) is Word and value.size == size
-    vm.push( params[ 1 ], Word( ~value.value, size ) )
+    assert value.size == size
+
+    if type( value ) is WordTop or type( value ) is WordBot:
+        vm.push( params[ 1 ], value )
+    else:
+        vm.push( params[ 1 ], Word( ~value.value, size ) )
 
 def bv_cons( vm: 'Interpret', params: list[ int ], size: int,
              number: int ) -> None:
@@ -480,24 +528,48 @@ def bv_cons( vm: 'Interpret', params: list[ int ], size: int,
 
 def cut( vm: 'Interpret', params: list[ int ], t: int ) -> None:
     value = vm.pop( params[ 0 ] )
-    assert type( value ) is Word
-    vm.push( params[ 1 ], Word( value.value, t ) )
+    assert isinstance( value, Word )
+
+    if type( value ) is WordBot:
+        vm.push( params[ 1 ], WordBot( t ) )
+    elif type( value ) is WordTop:
+        vm.push( params[ 1 ], WordTop( t ) )
+    else:
+        vm.push( params[ 1 ], Word( value.value, t ) )
 
 def ext( vm: 'Interpret', params: list[ int ], f: int, t: int,
          sign: bool ) -> None:
     value = vm.pop( params[ 0 ] )
-    assert type( value ) is Word and value.size == f
-    vm.push( params[ 1 ], Word( value.signed() if sign else value.value, t ) )
+    assert isinstance( value, Word ) and value.size == f
+
+    if type( value ) is WordBot:
+        vm.push( params[ 1 ], WordBot( t ) )
+    elif type( value ) is WordTop:
+        vm.push( params[ 1 ], WordTop( t ) )
+    else:
+        vm.push( params[ 1 ], Word( value.signed() if sign else value.value, t ) )
 
 def bool_cut( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     value = vm.pop( params[ 0 ] )
-    assert type( value ) is Word and value.size == size
-    vm.push( params[ 1 ], Bool( bool( value.get_value() & 1 ) ) )
+    assert isinstance( value, Word ) and value.size == size
+
+    if type( value ) is WordBot:
+        vm.push( params[ 1 ], BoolBot() )
+    elif type( value ) is WordTop:
+        vm.push( params[ 1 ], BoolTop() )
+    else:
+        vm.push( params[ 1 ], Bool( bool( value.get_value() & 1 ) ) )
 
 def bool_ext( vm: 'Interpret', params: list[ int ], size: int ) -> None:
     value = vm.pop( params[ 0 ] )
-    assert type( value ) is Bool
-    vm.push( params[ 1 ], Word( int( value.get_value() ), size ) )
+    assert isinstance( value, Bool )
+
+    if type( value ) is BoolBot:
+        vm.push( params[ 1 ], WordBot( size ) )
+    elif type( value ) is BoolTop:
+        vm.push( params[ 1 ], WordTop( size ) )
+    else:
+        vm.push( params[ 1 ], Word( int( value.get_value() ), size ) )
 
 ### Bool operations
 
@@ -552,21 +624,38 @@ def bool_dup( vm: 'Interpret', params: list[ int ] ) -> None:
     vm.push( params[ 1 ], value )
     vm.push( params[ 2 ], value )
 
+def bool_resolve_bot_top( vm: 'Interpret', l: Bool, r: Bool, to: int ) -> bool:
+    if type( l ) is Bool and type( r ) is Bool:
+        return False
+
+    if type( l ) is BoolTop or type( r ) is BoolTop:
+        vm.push( to, BoolTop() )
+    else:
+        vm.push( to, BoolBot() )
+
+    return True
+
 def bool_not( vm: 'Interpret', params: list[ int ] ) -> None:
-    vm.push( params[ 1 ], Bool( not vm.pop( params[ 0 ] ).get_value() ) )
+    value = vm.pop( params[ 0 ] )
+    if type( value ) is BoolTop or type( value ) is BoolBot:
+        vm.push( params[ 1 ], value )
+    else:
+        vm.push( params[ 1 ], Bool( not value.get_value() ) )
 
 def bool_and( vm: 'Interpret', params: list[ int ] ) -> None:
-    a = vm.pop( params[ 0 ] )
-    b = vm.pop( params[ 1 ] )
-    vm.push( params[ 2 ], Bool( a.get_value() and b.get_value() ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bool_resolve_bot_top( vm, l, r, params[ 2 ] ):
+        vm.push( params[ 2 ], Bool( l.get_value() and r.get_value() ) )
 
 def bool_or( vm: 'Interpret', params: list[ int ] ) -> None:
-    a = vm.pop( params[ 0 ] )
-    b = vm.pop( params[ 1 ] )
-    vm.push( params[ 2 ], Bool( a.get_value() or b.get_value() ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bool_resolve_bot_top( vm, l, r, params[ 2 ] ):
+        vm.push( params[ 2 ], Bool( l.get_value() or r.get_value() ) )
 
 def bool_xor( vm: 'Interpret', params: list[ int ] ) -> None:
-    vm.push( params[ 2 ], Bool( vm.pop( params[ 0 ] ).get_value() != vm.pop( params[ 1 ] ).get_value() ) )
+    l, r = vm.pop( params[ 0 ] ), vm.pop( params[ 1 ] )
+    if not bool_resolve_bot_top( vm, l, r, params[ 2 ] ):
+        vm.push( params[ 2 ], Bool( l.get_value() != r.get_value() ) )
 
 def bool_assert( vm: 'Interpret', params: list[ int ] ) -> None:
     assert vm.pop( params[ 0 ] ).get_value()
@@ -725,13 +814,18 @@ def ref_dup( vm: 'Interpret', params: list[ int ] ) -> None:
     vm.push( params[ 1 ], value )
     vm.push( params[ 2 ], value.clone() )
 
-# TODO: Resolve `RefTop` and `RefBot`
 def ref_add( vm: 'Interpret', params: list[ int ] ) -> None:
     ref = vm.pop( params[ 0 ] )
-    value = vm.pop( params[ 1 ] )
-    assert type( value ) is Word and value.size == 32
-    assert isinstance( ref, Ref )
-    vm.push( params[ 2 ], Ref( ref.get_obj(), ref.get_off() + value.signed() ) )
+    off = vm.pop( params[ 1 ] )
+
+    assert isinstance( ref, Ref ) and isinstance( off, Word ) and off.size == 32
+
+    if isinstance( ref, RefTop ) or isinstance( off, WordTop ):
+        vm.push( params[ 2 ], RefTop( None, None ) )
+    elif isinstance( ref, RefBot ) or isinstance( off, WordBot ):
+        vm.push( params[ 2 ], RefBot( None, None ) )
+    else:
+        vm.push( params[ 2 ], Ref( ref.get_obj(), ref.get_off() + off.signed() ) )
 
 ### Dict operations
 
@@ -789,6 +883,9 @@ def memory_free( vm: 'Interpret', params: list[ int ] ) -> None:
     t = vm.pop( params[ 1 ] )
     m = vm.pop( params[ 2 ] )
 
+    if type( r ) is RefBot and type( t ) is TokenBot and type( m ) is DictBot:
+        return
+
     assert r.get_off() == 0
     assert r.obj is t.obj is m
 
@@ -813,32 +910,51 @@ def w8_store( vm: 'Interpret', params: list[ int ] ) -> None:
     mem[ ref.get_off() ] = val
     vm.push( params[ 3 ], mem )
 
+# Definitely needs a clearer solution.
 def w32_load( vm: 'Interpret', params: list[ int ] ) -> None:
+    def has( mem: Memory, ref: Ref, obj: Word ) -> bool:
+        for i in range( 4 ):
+            if type( mem[ ref.get_off() + i ] ) is type( obj ):
+                return True
+        return False
+
     ref = vm.pop( params[ 0 ] )
     mem = vm.pop( params[ 1 ] )
-    value = 0
 
     assert ref.obj is mem
 
-    for i in range( 4 ):
-        byte = mem[ ref.get_off() + i ]
-        # What to do if there is WordBot / WordTop?
-        assert type( byte ) is Word and byte.size == 8
-        value |= byte.value << ( 8 * i )
+    if has( mem, ref, WordTop( 8 ) ):
+        vm.push( params[ 2 ], WordTop( 32 ) )
+    elif has( mem, ref, WordBot( 8 ) ):
+        vm.push( params[ 2 ], WordBot( 32 ) )
+    else:
+        value = 0
+        for i in range( 4 ):
+            byte = mem[ ref.get_off() + i ]
+            assert byte.size == 8
+            value |= byte.value << ( 8 * i )
+        vm.push( params[ 2 ], Word( value, 32 ) )
 
-    vm.push( params[ 2 ], Word( value, 32 ) )
     vm.push( params[ 3 ], mem )
 
+# Definitely needs a clearer solution.
 def w32_store( vm: 'Interpret', params: list[ int ] ) -> None:
     ref = vm.pop( params[ 0 ] )
     val = vm.pop( params[ 1 ] )
     mem = vm.pop( params[ 2 ] )
 
-    assert type( val ) is Word and val.size == 32
+    assert val.size == 32
     assert ref.obj is mem
 
-    for i in range( 4 ):
-        mem[ ref.get_off() + i ] = Word( val.value >> ( 8 * i ), 8 )
+    if type( val ) is WordTop:
+        for i in range( 4 ):
+            mem[ ref.get_off() + i ] = WordTop( 8 )
+    elif type( val ) is WordBot:
+        for i in range( 4 ):
+            mem[ ref.get_off() + i ] = WordBot( 8 )
+    else:
+        for i in range( 4 ):
+            mem[ ref.get_off() + i ] = Word( val.value >> ( 8 * i ), 8 )
 
     vm.push( params[ 3 ], mem )
 
@@ -849,9 +965,14 @@ def bool_load( vm: 'Interpret', params: list[ int ] ) -> None:
     assert ref.obj is mem
 
     value = mem[ ref.get_off() ]
-    # What to do if there is WordBot / WordTop?
-    assert type( value ) is Word and value.size == 8
-    vm.push( params[ 2 ], Bool( bool( value.value ) ) )
+
+    if type( value ) is WordBot:
+        vm.push( params[ 2 ], BoolBot() )
+    elif type( value ) is WordTop:
+        vm.push( params[ 2 ], BoolTop() )
+    else:
+        vm.push( params[ 2 ], Bool( bool( value.get_value() ) ) )
+
     vm.push( params[ 3 ], mem )
 
 def bool_store( vm: 'Interpret', params: list[ int ] ) -> None:
@@ -861,7 +982,13 @@ def bool_store( vm: 'Interpret', params: list[ int ] ) -> None:
 
     assert ref.obj is mem
 
-    mem[ ref.get_off() ] = Word( val.get_value(), 8 )
+    if type( val ) is BoolTop:
+        mem[ ref.get_off() ] = WordTop( 8 )
+    elif type( val ) is BoolBot:
+        mem[ ref.get_off() ] = WordBot( 8 )
+    else:
+        mem[ ref.get_off() ] = Word( val.get_value(), 8 )
+
     vm.push( params[ 3 ], mem )
 
 ### Entry point
